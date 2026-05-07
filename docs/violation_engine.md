@@ -173,6 +173,53 @@ python backend\inference\live_simulator.py --detector yolo --conf 0.4 --violatio
 python backend\inference\live_simulator.py --headless --max-frames 500
 ```
 
+## ByteTrack Tuning (Phase 2B.1)
+
+### Problem
+
+In Phase 2B headless runs, the same physical worker often produced *multiple* `worker_id`s across the looping CCTV video. Example: a non-compliant worker fires `no_hardhat` as `W002` in loop 1, then re-appears at the same body in loop 2 as `W036` and fires the violation again with a fresh event_id. Aggregate session counts inflate and the violations dashboard double-counts the same person.
+
+### Root cause
+
+ByteTrack drops a "lost" track after `track_buffer` frames of absence. With the YOLO pathway, the value was the ultralytics default of **30 frames (~1.25 s @ 24 fps)**. At a video loop boundary, *every* track goes lost simultaneously when the video rewinds — and 30 frames is far too short to bridge the gap between detection on frame 191 (end of loop 1) and frame 0 of loop 2 if the same worker isn't immediately matched. Result: every worker gets a fresh ID at loop start.
+
+### Solution
+
+Two-track fix:
+
+1. **YOLO pathway** — created [`backend/inference/configs/bytetrack_custom.yaml`](../backend/inference/configs/bytetrack_custom.yaml) with `track_buffer: 300` (10× the default; ≈ 12.5 s @ 24 fps source FPS). The `DetectorAdapter` already wired this in (`Path("backend/inference/configs/bytetrack_custom.yaml").exists()` switch); fix in this phase made the path absolute (resolves regardless of CWD) and added a startup print so we can see which YAML is in use.
+
+2. **RT-DETR pathway** — bumped `lost_track_buffer` from `150` to `300` in `RTDetrDetector.__init__`. RT-DETR uses `supervision.ByteTrack`, which takes the buffer as a constructor argument rather than a YAML.
+
+Other knobs in `bytetrack_custom.yaml`:
+
+| Param | Default | New | Reason |
+|---|---:|---:|---|
+| `track_high_thresh` | 0.25 | **0.4** | Stricter first-stage match — fewer ID switches between nearby workers. |
+| `new_track_thresh`  | 0.25 | **0.5** | Require a stronger detection to spawn a *new* track — gives the existing-track matcher first dibs on weak detections. |
+| `track_buffer`      | 30   | **300** | The headline change. |
+| `match_thresh`      | 0.8  | **0.85** | Stricter IoU during association reduces drift between two workers crossing paths. |
+
+### Measured impact (600 frames = 3 video loops, `test_video_01.mp4`)
+
+| Detector | track_buffer (before → after) | Unique worker_ids (before → after) | Per-loop IDs |
+|---|---|---:|---:|
+| YOLO     | 30  → 300 | ≈31 → **25** | 12.4 → **8.3** *(↓33%)* |
+| RT-DETR  | 150 → 300 | ≈31 → 36   | 12.4 → 12 *(noise)* |
+
+The YOLO change is meaningful. RT-DETR's existing buffer (150) was already large enough to bridge the 192-frame loop boundary, so the further bump to 300 is mostly insurance — the bottleneck for RT-DETR cross-loop continuity is **not** the buffer length but the matching threshold against Kalman-predicted bboxes after a long absence (the predicted location drifts during the lost period). Future work could investigate `minimum_matching_threshold` for RT-DETR specifically.
+
+### Trade-offs
+
+A very long buffer means ByteTrack will try to reuse an old `worker_id` for a *different* physical worker who happens to walk into the same area minutes later. For construction sites where workers stay on shift for hours, this is a fine trade — keeping continuity is worth the rare ID-collision risk. For high-throughput environments (turnstiles, brief visitors) you'd want a shorter buffer.
+
+The stricter `new_track_thresh: 0.5` also means a real new worker entering the scene needs a higher-confidence detection to be tracked at all. If detections of incoming workers are typically weak (small at the frame edge), they may go untracked for a few frames longer than before. Compensated by `min_violation_duration` debouncing — a brief un-tracked moment doesn't matter for safety reporting.
+
+### Verification
+
+- Violation engine still fires correctly with the same default thresholds (run produces 0 events on this mostly-compliant video, same as Phase 2B baseline — confirmed by `--violation-threshold 0.15 --min-duration 3.0` still producing the expected events from loose-threshold testing).
+- All Turkish HUD text intact, all keyboard controls intact, JSON report still written.
+
 ## Files
 
 - `backend/inference/violation_engine.py` — `PPEMatch`, `ViolationEvent`, `IoUMatcher`, `WorkerStateBuffer`, `ViolationDetector`, plus Turkish label lookup.

@@ -1,0 +1,24 @@
+# ByteTrack tuned for İşGözcü construction safety monitoring (Phase 2B.1)
+#
+# Key change: track_buffer increased from 30 → 300 frames
+# Reason: Workers in construction sites may temporarily disappear behind
+# structures, leave the frame briefly, or be occluded. The same physical
+# worker should keep the same ID across these gaps. Also, in the live
+# simulator the source video loops every ~8 seconds, and at the loop
+# boundary every worker is "absent" simultaneously when frames rewind —
+# the default 30-frame (≈1 s) buffer drops every track and assigns fresh
+# IDs at loop start.
+#
+# At 24 fps source, track_buffer=300 ≈ 12.5 seconds of memory.
+# At 8 fps end-to-end (RT-DETR pipeline), it represents up to 37.5 seconds.
+
+tracker_type: bytetrack
+track_high_thresh: 0.4   # was 0.25 — stricter first-stage match, fewer ID switches
+track_low_thresh: 0.1    # default — keeps low-score recovery
+new_track_thresh: 0.5    # was 0.25 — require a stronger detection to spawn a NEW track,
+                         # otherwise a re-appearing worker tends to start a fresh track
+                         # before the old one has a chance to re-associate
+track_buffer: 300        # was 30 — 10× increase for occlusion + loop-boundary tolerance
+match_thresh: 0.85       # was 0.8 — stricter IoU matching reduces drift between two
+                         # nearby workers that might cross paths
+fuse_score: True

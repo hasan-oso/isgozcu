@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import Literal, Optional, TypedDict
 
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
 class StandardDetection(TypedDict):
     bbox: tuple[int, int, int, int]
     class_id: int
@@ -50,8 +53,11 @@ class DetectorAdapter:
             self._class_names_map: dict[int, str] = self.model.names
 
             # Use custom bytetrack config if it exists, otherwise default.
-            cfg = Path("backend/inference/configs/bytetrack_custom.yaml")
+            # Resolve relative to project root so the lookup works regardless
+            # of the current working directory.
+            cfg = _PROJECT_ROOT / "backend" / "inference" / "configs" / "bytetrack_custom.yaml"
             self._tracker_yaml = str(cfg) if cfg.exists() else "bytetrack.yaml"
+            print(f"[DetectorAdapter] tracker config: {Path(self._tracker_yaml).name}")
 
         elif detector_type == "rtdetr":
             from backend.inference.rtdetr_detector import RTDetrDetector

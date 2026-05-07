@@ -47,7 +47,9 @@
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --min-duration 1.0 --violation-threshold 0.3 --headless --max-frames 500)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --violation-threshold 0.3 --min-duration 3.0 --headless --max-frames 500)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --violation-threshold 0.15 --min-duration 3.0 --headless --max-frames 500)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --violation-threshold 0.15 --min-duration 3.0 --headless --max-frames 250 --snapshot-every 90)"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --violation-threshold 0.15 --min-duration 3.0 --headless --max-frames 250 --snapshot-every 90)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --conf 0.25 --headless --max-frames 600)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --headless --max-frames 600)"
     ]
   }
 }

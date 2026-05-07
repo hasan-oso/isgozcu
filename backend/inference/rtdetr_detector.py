@@ -31,7 +31,11 @@ class RTDetrDetector:
         device: str = "cuda",
         conf_threshold: float = 0.25,
         use_fp16: bool = True,
-        track_buffer: int = 150,
+        # Phase 2B.1: bumped 150 → 300. Workers fragmented into multiple
+        # track_ids when the looping CCTV video rewound; a longer buffer keeps
+        # the same physical worker on the same ID across loop boundaries and
+        # short occlusions. See docs/violation_engine.md.
+        track_buffer: int = 300,
     ) -> None:
         self.model_path = Path(model_path)
         if not self.model_path.exists():
@@ -52,9 +56,11 @@ class RTDetrDetector:
         self.id2label: dict[int, str] = {int(k): v for k, v in raw.items()}
         self.class_names: list[str] = [self.id2label[i] for i in sorted(self.id2label)]
 
+        # Settings mirror the YOLO-side bytetrack_custom.yaml so the two
+        # backends behave consistently w.r.t. loop-boundary continuity.
         self.tracker = sv.ByteTrack(
             track_activation_threshold=max(0.25, conf_threshold * 0.6),
-            lost_track_buffer=track_buffer,
+            lost_track_buffer=track_buffer,  # 300 from default
             minimum_matching_threshold=0.85,
             frame_rate=30,
             minimum_consecutive_frames=2,
