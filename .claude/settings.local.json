@@ -29,7 +29,11 @@
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install mediapipe)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install \"mediapipe==0.10.21\")",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_live_pipeline_headless.py)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/test_image.py --input videos/samples/test_image_01.png)"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/test_image.py --input videos/samples/test_image_01.png)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/utils/video_info.py videos/samples/test_video_01.mp4)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('C:/Users/Efendi.Tec/isgozcu/backend/inference/live_simulator.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe C:/Users/Efendi.Tec/isgozcu/backend/inference/live_simulator.py --help)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --headless --max-frames 400 --speed 4.0 --snapshot-every 100)"
     ]
   }
 }
