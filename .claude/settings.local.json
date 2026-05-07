@@ -25,7 +25,10 @@
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe C:/Users/Efendi.Tec/isgozcu/backend/inference/test_detection.py --help)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/test_detection.py)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/test_detection.py --input videos/samples/sample_02.mp4 --output videos/outputs/sample_02_detected.mp4)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c ' *)"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c ' *)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install mediapipe)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install \"mediapipe==0.10.21\")",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_live_pipeline_headless.py)"
     ]
   }
 }
