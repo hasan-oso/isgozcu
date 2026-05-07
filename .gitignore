@@ -7,6 +7,9 @@ videos/samples/*.mp4
 videos/outputs/*.mp4
 data/snapshots/*.jpg
 data/snapshots/*.png
+data/snapshots/**/*.jpg
+data/snapshots/**/*.png
+data/reports/
 backend/models/*.pt
 backend/models/*/
 .vscode/

@@ -39,7 +39,15 @@
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --headless --max-frames 100 --snapshot-every 80)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --headless --max-frames 100 --snapshot-every 80)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_rtdetr_thresholds.py)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --conf 0.25 --headless --max-frames 200)"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --conf 0.25 --headless --max-frames 200)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --headless --max-frames 500)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --conf 0.25 --violation-threshold 0.3 --min-duration 2.0 --headless --max-frames 500)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_violation_engine.py)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --headless --max-frames 500)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --min-duration 1.0 --violation-threshold 0.3 --headless --max-frames 500)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --violation-threshold 0.3 --min-duration 3.0 --headless --max-frames 500)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --violation-threshold 0.15 --min-duration 3.0 --headless --max-frames 500)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --violation-threshold 0.15 --min-duration 3.0 --headless --max-frames 250 --snapshot-every 90)"
     ]
   }
 }

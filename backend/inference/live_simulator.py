@@ -13,10 +13,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import os
 import sys
 import time
+import uuid
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -36,7 +38,6 @@ import cv2
 import numpy as np
 import torch
 from dotenv import load_dotenv
-from PIL import Image, ImageDraw, ImageFont
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -44,28 +45,13 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.inference.detector_adapter import DetectorAdapter  # noqa: E402
-
-
-_FONT_CACHE: dict[int, "ImageFont.FreeTypeFont"] = {}
-
-
-def _get_font(size_px: int):
-    if size_px in _FONT_CACHE:
-        return _FONT_CACHE[size_px]
-    candidates = [
-        "C:/Windows/Fonts/segoeui.ttf",  # Segoe UI — full Turkish support, Windows default
-        "C:/Windows/Fonts/arial.ttf",
-        "arial.ttf",
-        "DejaVuSans.ttf",
-    ]
-    for path in candidates:
-        try:
-            f = ImageFont.truetype(path, size_px)
-            _FONT_CACHE[size_px] = f
-            return f
-        except (OSError, IOError):
-            continue
-    return ImageFont.load_default()
+from backend.inference.snapshot_saver import SnapshotSaver  # noqa: E402
+from backend.inference.text_render import put_text_outlined as _put_text_outlined  # noqa: E402
+from backend.inference.violation_engine import (  # noqa: E402
+    VIOLATION_LABEL_TR,
+    IoUMatcher,
+    ViolationDetector,
+)
 
 
 # Colors (BGR)
@@ -111,45 +97,7 @@ def _ensure_env(root: Path) -> None:
     load_dotenv(env)
 
 
-def _put_text_outlined(img, text, org, scale=0.6, fg=COLOR_WHITE, bg=COLOR_BLACK, thickness=1):
-    """Draw outlined Unicode-safe text on a BGR numpy array (in place).
-
-    Uses Pillow on a tight ROI around the text bbox so each call is cheap even
-    though we round-trip through PIL for proper Turkish-character rendering.
-    `org` matches cv2.putText semantics (baseline-bottom-left).
-    """
-    size_px = max(11, int(round(scale * 22)))
-    font = _get_font(size_px)
-    stroke = max(2, thickness + 1)
-    # font.getbbox -> (x0, y0, x1, y1) for text at origin; gives required pixels
-    try:
-        bx0, by0, bx1, by1 = font.getbbox(text)
-    except (AttributeError, TypeError):  # default bitmap font fallback
-        bx0, by0, bx1, by1 = 0, 0, len(text) * size_px // 2, size_px
-    x, y = int(org[0]), int(org[1])
-    pil_y = y - size_px  # cv2 baseline → PIL top (approx)
-    pad = stroke + 1
-    rx0 = x + bx0 - pad
-    ry0 = pil_y + by0 - pad
-    rx1 = x + bx1 + pad
-    ry1 = pil_y + by1 + pad
-    H, W = img.shape[:2]
-    cx0, cy0 = max(0, rx0), max(0, ry0)
-    cx1, cy1 = min(W, rx1), min(H, ry1)
-    if cx1 <= cx0 or cy1 <= cy0:
-        return
-    sub = img[cy0:cy1, cx0:cx1]
-    pil = Image.fromarray(cv2.cvtColor(sub, cv2.COLOR_BGR2RGB))
-    draw = ImageDraw.Draw(pil)
-    draw.text(
-        (x - cx0, pil_y - cy0),
-        text,
-        font=font,
-        fill=(fg[2], fg[1], fg[0]),
-        stroke_width=stroke,
-        stroke_fill=(bg[2], bg[1], bg[0]),
-    )
-    sub[:] = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
+# put_text_outlined imported above from backend.inference.text_render
 
 
 def _draw_translucent_box(frame, x, y, w, h, alpha=0.55):
@@ -176,6 +124,10 @@ class LiveStreamSimulator:
         headless: bool = False,
         max_frames: Optional[int] = None,
         snapshot_every: Optional[int] = None,
+        enable_violations: bool = True,
+        min_violation_duration: float = 5.0,
+        violation_threshold: float = 0.7,
+        recovery_threshold: float = 0.3,
     ) -> None:
         self.video_path = video_path
         self.camera_id = camera_id
@@ -186,6 +138,7 @@ class LiveStreamSimulator:
         self.max_frames = max_frames
         self.snapshot_every = snapshot_every
         self.detector_type = detector_type
+        self.enable_violations = enable_violations
 
         self.cap = cv2.VideoCapture(str(video_path))
         if not self.cap.isOpened():
@@ -203,6 +156,29 @@ class LiveStreamSimulator:
         )
         self.class_names = {i: n for i, n in enumerate(self.detector.get_class_names())}
         self.imgsz = 640
+
+        # Violation engine
+        self.session_id = uuid.uuid4().hex[:12]
+        self.iou_matcher: Optional[IoUMatcher] = None
+        self.violation_detector: Optional[ViolationDetector] = None
+        self.snapshot_saver: Optional[SnapshotSaver] = None
+        if self.enable_violations:
+            # Buffer is sized at SOURCE fps because we observe each frame once.
+            # End-to-end pipeline FPS doesn't matter for buffer sizing — what
+            # matters is how many observations span `min_violation_duration`
+            # seconds of video time.
+            self.iou_matcher = IoUMatcher()
+            self.violation_detector = ViolationDetector(
+                min_violation_duration=min_violation_duration,
+                violation_threshold=violation_threshold,
+                recovery_threshold=recovery_threshold,
+                fps=self.source_fps,
+                camera_id=camera_id,
+            )
+            self.snapshot_saver = SnapshotSaver()
+        # worker_id -> list of active violation_types (rebuilt every frame)
+        self.active_worker_violations: dict[int, list[str]] = {}
+        self._session_started_at = datetime.now()
 
         # State
         self.loop_count = 0
@@ -278,6 +254,53 @@ class LiveStreamSimulator:
             ok, frame = self.cap.read()
         return ok, frame
 
+    def _video_time(self) -> float:
+        """Cumulative video-time seconds across loops (advances at 1/source_fps per processed frame)."""
+        return self.total_frames_processed / max(0.001, self.source_fps)
+
+    def _process_violations(self, detections: list[dict], frame_image: np.ndarray) -> None:
+        """Run IoU matching + state machine. Updates self.active_worker_violations."""
+        assert self.iou_matcher is not None and self.violation_detector is not None
+
+        persons = [d for d in detections if d["class_name"] == "Person" and d["track_id"] is not None]
+        groups = {
+            "Hardhat": [], "NO-Hardhat": [],
+            "Safety Vest": [], "NO-Safety Vest": [],
+            "Mask": [], "NO-Mask": [],
+        }
+        for d in detections:
+            if d["class_name"] in groups:
+                groups[d["class_name"]].append(d)
+
+        ts = self._video_time()
+        matches = self.iou_matcher.match_frame(
+            persons=persons,
+            hardhats=groups["Hardhat"],
+            no_hardhats=groups["NO-Hardhat"],
+            vests=groups["Safety Vest"],
+            no_vests=groups["NO-Safety Vest"],
+            masks=groups["Mask"],
+            no_masks=groups["NO-Mask"],
+            frame_number=self.total_frames_processed,
+            timestamp=ts,
+        )
+        result = self.violation_detector.process_matches(
+            matches=matches,
+            frame_number=self.total_frames_processed,
+            timestamp=ts,
+            frame_image=frame_image,
+            snapshot_saver=self.snapshot_saver,
+        )
+
+        for ev in result["new"]:
+            print(f"[ihlal başladı] W{ev.worker_id:03d} - {ev.violation_label_tr} "
+                  f"(conf {ev.confidence_avg:.2f}) -> {ev.snapshot_path}")
+        for ev in result["resolved"]:
+            print(f"[ihlal bitti] W{ev.worker_id:03d} - {ev.violation_label_tr} - "
+                  f"{ev.duration_seconds:.1f}s sürdü")
+
+        self.active_worker_violations = self.violation_detector.active_worker_violations()
+
     def _detect(self, frame):
         try:
             return self.detector.detect_and_track(frame)
@@ -317,6 +340,8 @@ class LiveStreamSimulator:
     def _draw_detections(self, canvas, detections: list[dict]) -> None:
         if not detections:
             return
+        # Pulsing factor for active violations (1 Hz)
+        pulse = 0.5 + 0.5 * math.sin((time.time() - self.session_start_time) * 2 * math.pi)
         for d in detections:
             x1, y1, x2, y2 = d["bbox"]
             name = d["class_name"]
@@ -324,15 +349,47 @@ class LiveStreamSimulator:
             tid = d["track_id"]
             color = CLASS_COLORS.get(name, COLOR_OTHER)
             thick = CLASS_THICK.get(name, 1)
+
+            # Active-violation visual treatment for the Person box
+            is_violator = (
+                name == "Person"
+                and tid is not None
+                and tid in self.active_worker_violations
+            )
+            if is_violator:
+                color = COLOR_RED
+                thick = 4
+
             cv2.rectangle(canvas, (x1, y1), (x2, y2), color, thick, cv2.LINE_AA)
             label = f"{name} {conf:.2f}"
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
             ly = max(y1 - 6, th + 6)
             cv2.rectangle(canvas, (x1, ly - th - 6), (x1 + tw + 8, ly + 2), color, -1)
             cv2.putText(canvas, label, (x1 + 3, ly - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_BLACK, 1, cv2.LINE_AA)
+
             if name == "Person" and tid is not None:
                 worker_label = f"W{int(tid):03d}"
-                _put_text_outlined(canvas, worker_label, (x1, max(y1 - 30, 22)), scale=0.6, fg=COLOR_YELLOW, thickness=2)
+                if is_violator:
+                    # Red ID badge with white text
+                    badge_color = (int(60 + 195 * pulse), int(60 + 60 * pulse), int(220 + 20 * pulse))
+                    (bw, bh), _ = cv2.getTextSize(worker_label, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
+                    bx, by = x1, max(y1 - 28, bh + 6)
+                    cv2.rectangle(canvas, (bx - 2, by - bh - 6), (bx + bw + 8, by + 4), badge_color, -1)
+                    _put_text_outlined(canvas, worker_label, (bx + 3, by - 2), scale=0.65, fg=COLOR_WHITE, thickness=2)
+                    # Warning text on top showing the most-critical active violation
+                    types = self.active_worker_violations.get(tid, [])
+                    primary = next(
+                        (t for t in ("no_hardhat", "no_vest", "no_mask") if t in types),
+                        types[0] if types else None,
+                    )
+                    if primary:
+                        warn = f"⚠ {VIOLATION_LABEL_TR.get(primary, primary)}"
+                        _put_text_outlined(
+                            canvas, warn, (x1, max(y1 - 56, 22)),
+                            scale=0.7, fg=COLOR_RED, thickness=2,
+                        )
+                else:
+                    _put_text_outlined(canvas, worker_label, (x1, max(y1 - 30, 22)), scale=0.6, fg=COLOR_YELLOW, thickness=2)
 
     def _draw_hud(self, canvas, active_violations: int, persons_in_frame: int) -> None:
         h, w = canvas.shape[:2]
@@ -359,16 +416,22 @@ class LiveStreamSimulator:
         _put_text_outlined(canvas, f"Tur: #{self.loop_count}", (20, bl_y + 50), scale=0.6, thickness=2)
         _put_text_outlined(canvas, f"FPS: {self.fps_ema:.1f}   Hız: {self.speed:g}x", (20, bl_y + 72), scale=0.55)
 
-        # Bottom-right stats
+        # Bottom-right stats — prefer violation engine counts if enabled
         br_x = w - 328
         br_y = h - 148
         _draw_translucent_box(canvas, br_x, br_y, 320, 100, alpha=0.55)
         _put_text_outlined(canvas, f"Aktif İşçi: {persons_in_frame}", (br_x + 12, br_y + 24), scale=0.6, thickness=2)
         total_dets = sum(self.detections_per_class.values())
         _put_text_outlined(canvas, f"Toplam Algılama: {total_dets}", (br_x + 12, br_y + 46), scale=0.55)
-        viol_color = COLOR_RED if active_violations else COLOR_WHITE
-        _put_text_outlined(canvas, f"Aktif İhlal: {active_violations}", (br_x + 12, br_y + 70), scale=0.65, thickness=2, fg=viol_color)
-        _put_text_outlined(canvas, f"Toplam İhlal: {len(self.violation_track_ids)}", (br_x + 12, br_y + 92), scale=0.55)
+        if self.violation_detector is not None:
+            active_count = len(self.violation_detector.get_active_violations())
+            total_count = active_count + len(self.violation_detector.get_completed_violations())
+        else:
+            active_count = active_violations
+            total_count = len(self.violation_track_ids)
+        viol_color = COLOR_RED if active_count else COLOR_WHITE
+        _put_text_outlined(canvas, f"Aktif İhlal: {active_count}", (br_x + 12, br_y + 70), scale=0.65, thickness=2, fg=viol_color)
+        _put_text_outlined(canvas, f"Toplam İhlal: {total_count}", (br_x + 12, br_y + 92), scale=0.55)
 
         # Bottom controls strip
         _draw_translucent_box(canvas, 0, h - 40, w, 40, alpha=0.6)
@@ -437,10 +500,13 @@ class LiveStreamSimulator:
                         break
                     display_frame = self._resize_for_display(frame)
                     detections = self._detect(display_frame)
-                    active_v, persons = self._update_stats(detections)
+                    active_v_count, persons = self._update_stats(detections)
+                    # Violation processing (uses video time, not wall clock)
+                    if self.enable_violations:
+                        self._process_violations(detections, display_frame)
                     canvas = display_frame.copy()
                     self._draw_detections(canvas, detections)
-                    self._draw_hud(canvas, active_v, persons)
+                    self._draw_hud(canvas, active_v_count, persons)
                     self.last_frame = display_frame
                     self.last_result = detections
                     self.total_frames_processed += 1
@@ -523,6 +589,13 @@ class LiveStreamSimulator:
             if torch.cuda.is_available()
             else 0.0
         )
+
+        # Finalize any still-active violations and write the JSON report
+        report_path: Optional[Path] = None
+        if self.violation_detector is not None:
+            self.violation_detector.finalize(self._video_time())
+            report_path = self._write_session_report(elapsed)
+
         print()
         print("=" * 64)
         print("OTURUM ÖZETİ / SESSION SUMMARY")
@@ -533,7 +606,18 @@ class LiveStreamSimulator:
         print(f"Ortalama FPS / avg:       {avg_fps:.2f}")
         print(f"Tepe VRAM / peak:         {peak_vram_mb:.2f} MB")
         print(f"Benzersiz işçi / unique:  {len(self.unique_workers_seen)}")
-        print(f"Benzersiz ihlal track ID: {len(self.violation_track_ids)}")
+        if self.violation_detector is not None:
+            all_v = self.violation_detector.all_violations()
+            print(f"Toplam ihlal sayısı:      {len(all_v)}")
+            by_type = defaultdict(int)
+            for ev in all_v:
+                by_type[ev.violation_type] += 1
+            for vt in ("no_hardhat", "no_vest", "no_mask"):
+                print(f"  {vt:<14} {by_type[vt]}")
+            if report_path:
+                print(f"Rapor / report:           {report_path}")
+        else:
+            print(f"Benzersiz ihlal track ID: {len(self.violation_track_ids)}")
         print()
         print("Sınıf bazında algılama / detections per class:")
         if self.detections_per_class:
@@ -542,6 +626,45 @@ class LiveStreamSimulator:
         else:
             print("  (yok / none)")
         print("=" * 64)
+
+    def _write_session_report(self, elapsed_s: float) -> Optional[Path]:
+        if self.violation_detector is None:
+            return None
+        all_violations = self.violation_detector.all_violations()
+        by_type: dict[str, int] = defaultdict(int)
+        durations: list[float] = []
+        unique_violators: set[int] = set()
+        for ev in all_violations:
+            by_type[ev.violation_type] += 1
+            durations.append(ev.duration_seconds)
+            unique_violators.add(ev.worker_id)
+        avg_dur = float(sum(durations) / len(durations)) if durations else 0.0
+
+        report = {
+            "session_id": self.session_id,
+            "started_at": self._session_started_at.isoformat(timespec="milliseconds"),
+            "ended_at": datetime.now().isoformat(timespec="milliseconds"),
+            "total_duration_seconds": round(elapsed_s, 3),
+            "camera_id": self.camera_id,
+            "video_source": str(self.video_path),
+            "detector_type": self.detector_type,
+            "loop_count": self.loop_count,
+            "frames_processed": self.total_frames_processed,
+            "total_violations": len(all_violations),
+            "violations_by_type": {
+                "no_hardhat": by_type.get("no_hardhat", 0),
+                "no_vest": by_type.get("no_vest", 0),
+                "no_mask": by_type.get("no_mask", 0),
+            },
+            "unique_workers_violated": len(unique_violators),
+            "average_violation_duration": round(avg_dur, 3),
+            "violations": [ev.to_dict() for ev in all_violations],
+        }
+        out_dir = PROJECT_ROOT / "data" / "reports"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"{self.session_id}_violations.json"
+        out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        return out_path
 
 
 def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
@@ -559,6 +682,16 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     p.add_argument("--headless", action="store_true", help="No GUI; for automated testing.")
     p.add_argument("--max-frames", type=int, default=None)
     p.add_argument("--snapshot-every", type=int, default=None)
+    p.add_argument("--enable-violations", dest="enable_violations", action="store_true", default=True,
+                   help="Enable the violation engine (default).")
+    p.add_argument("--disable-violations", dest="enable_violations", action="store_false",
+                   help="Turn the violation engine off.")
+    p.add_argument("--min-duration", type=float, default=5.0,
+                   help="Min violation duration in video seconds before firing (default 5.0).")
+    p.add_argument("--violation-threshold", type=float, default=0.7,
+                   help="Non-compliance ratio that triggers a violation (default 0.7).")
+    p.add_argument("--recovery-threshold", type=float, default=0.3,
+                   help="Ratio below which an active violation ends. Must be < violation-threshold (default 0.3).")
     return p.parse_args(argv)
 
 
@@ -597,6 +730,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         headless=args.headless,
         max_frames=args.max_frames,
         snapshot_every=args.snapshot_every,
+        enable_violations=args.enable_violations,
+        min_violation_duration=args.min_duration,
+        violation_threshold=args.violation_threshold,
+        recovery_threshold=args.recovery_threshold,
     )
     return sim.run()
 
