@@ -18,7 +18,14 @@
       "Bash(rm -rf /tmp/ppe_repo)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"from ultralytics import YOLO; m = YOLO\\('C:/Users/Efendi.Tec/isgozcu/backend/models/ppe_yolov8n.pt'\\); print\\('Classes:', m.names\\)\")",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install tqdm)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/utils/video_info.py videos/outputs/sample_01_detected.mp4)"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/utils/video_info.py videos/outputs/sample_01_detected.mp4)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import sys, ultralytics; print\\('venv prefix:', sys.prefix\\); print\\('ultralytics:', ultralytics.__version__\\)\")",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/utils/video_info.py videos/samples/sample_02.mp4)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('C:/Users/Efendi.Tec/isgozcu/backend/inference/test_detection.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe C:/Users/Efendi.Tec/isgozcu/backend/inference/test_detection.py --help)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/test_detection.py)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/test_detection.py --input videos/samples/sample_02.mp4 --output videos/outputs/sample_02_detected.mp4)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c ' *)"
     ]
   }
 }

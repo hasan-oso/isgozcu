@@ -2,10 +2,13 @@
 
 Usage (from project root, with venv active):
     python backend/inference/test_detection.py
+    python backend/inference/test_detection.py --input videos/samples/sample_02.mp4
+    python backend/inference/test_detection.py --input X.mp4 --output Y.mp4
 """
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 import time
@@ -86,6 +89,8 @@ class PPEDetector:
         detection_counts: dict[str, int] = defaultdict(int)
         unique_ids: set[int] = set()
         processed = 0
+        warmup_frames = 30
+        warmup_end_time: Optional[float] = None
         start = time.perf_counter()
 
         try:
@@ -118,6 +123,8 @@ class PPEDetector:
                     writer.write(annotated)
 
                     processed += 1
+                    if processed == warmup_frames:
+                        warmup_end_time = time.perf_counter()
                     pbar.update(1)
                     if processed % 30 == 0:
                         elapsed_so_far = time.perf_counter() - start
@@ -126,7 +133,14 @@ class PPEDetector:
             cap.release()
             writer.release()
 
-        elapsed = time.perf_counter() - start
+        end_time = time.perf_counter()
+        elapsed = end_time - start
+        if warmup_end_time is not None and processed > warmup_frames:
+            steady_elapsed = end_time - warmup_end_time
+            steady_fps = (processed - warmup_frames) / steady_elapsed if steady_elapsed > 0 else 0.0
+        else:
+            steady_fps = 0.0
+
         peak_vram_mb = (
             torch.cuda.max_memory_allocated() / (1024 * 1024)
             if torch.cuda.is_available()
@@ -139,6 +153,7 @@ class PPEDetector:
             "total_frames": processed,
             "elapsed_s": elapsed,
             "avg_fps": processed / elapsed if elapsed > 0 else 0.0,
+            "steady_fps_30": steady_fps,
             "detections_per_class": dict(detection_counts),
             "unique_track_ids": len(unique_ids),
             "output_size_mb": output_path.stat().st_size / (1024 * 1024)
@@ -162,16 +177,42 @@ def _is_oom(err: BaseException) -> bool:
     return "out of memory" in msg or "cuda oom" in msg
 
 
-def main() -> int:
+def _resolve(path_like: str | Path) -> Path:
+    p = Path(path_like)
+    return p if p.is_absolute() else PROJECT_ROOT / p
+
+
+def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run PPE detection + ByteTrack on a video.",
+    )
+    parser.add_argument(
+        "--input",
+        default="videos/samples/sample_01.mp4",
+        help="Input video path (default: videos/samples/sample_01.mp4).",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Output video path. If omitted, derived as videos/outputs/<stem>_detected.mp4.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Optional[list[str]] = None) -> int:
     _ensure_env(PROJECT_ROOT)
+    args = _parse_args(argv)
 
     model_path = Path(os.getenv("YOLO_MODEL_PATH", "backend/models/ppe_yolov8n.pt"))
     if not model_path.is_absolute():
         model_path = PROJECT_ROOT / model_path
     conf = float(os.getenv("CONFIDENCE_THRESHOLD", "0.4"))
 
-    input_video = PROJECT_ROOT / "videos" / "samples" / "sample_01.mp4"
-    output_video = PROJECT_ROOT / "videos" / "outputs" / "sample_01_detected.mp4"
+    input_video = _resolve(args.input)
+    if args.output:
+        output_video = _resolve(args.output)
+    else:
+        output_video = PROJECT_ROOT / "videos" / "outputs" / f"{input_video.stem}_detected.mp4"
 
     summary: Optional[dict] = None
     last_err: Optional[BaseException] = None
@@ -215,6 +256,7 @@ def main() -> int:
     print(f"Toplam kare / frames: {summary['total_frames']}")
     print(f"Süre / elapsed:       {summary['elapsed_s']:.2f} s")
     print(f"Ortalama FPS:         {summary['avg_fps']:.2f}")
+    print(f"Sürekli FPS (>30):    {summary['steady_fps_30']:.2f}")
     print(f"Benzersiz ID / IDs:   {summary['unique_track_ids']}")
     print(f"Çıktı boyutu / size:  {summary['output_size_mb']:.2f} MB")
     print(f"Tepe VRAM:            {summary['peak_vram_mb']:.2f} MB")
