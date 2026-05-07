@@ -119,6 +119,65 @@ Each standardized detection has the keys:
 
 Downstream consumers (`_draw_detections`, `_update_stats`) only see this dict — they don't know which model produced it. To plug in a new detector backend later, implement a class with the same interface and add a branch in `DetectorAdapter.__init__`.
 
+## Threshold Tuning (Phase 2A.1)
+
+After the initial migration, RT-DETR was missing all `NO-Hardhat` and `NO-Safety Vest` detections at the inherited `conf=0.4` threshold. We swept thresholds `[0.40, 0.30, 0.25, 0.20, 0.15]` on the same 100 frames of `test_video_01.mp4`, running inference *once per frame* and post-processing the same logits at each threshold (so comparisons are exact, not noisy). Script: `tests/test_rtdetr_thresholds.py`.
+
+### Detection counts vs threshold
+
+| class             |   0.40 |   0.30 |   **0.25** |   0.20 |   0.15 |
+|-------------------|-------:|-------:|-----------:|-------:|-------:|
+| Hardhat           |    344 |    395 |    **446** |    511 |    637 |
+| Mask              |      0 |      3 |      **9** |     26 |     90 |
+| NO-Hardhat        |      1 |      3 |      **7** |     17 |     45 |
+| NO-Mask           |     19 |     34 |     **42** |     67 |    101 |
+| NO-Safety Vest    |      0 |     23 |     **73** |    120 |    221 |
+| Person            |    242 |    360 |    **482** |    659 |   1035 |
+| Safety Cone       |      0 |      0 |      **3** |     10 |     23 |
+| Safety Vest       |    448 |    603 |    **711** |    909 |   1293 |
+| **TOTAL**         |   1054 |   1421 |   **1773** |   2319 |   3445 |
+| **NO-* (violations)** |  20 |     60 |    **122** |    204 |    367 |
+| **Compliant**     |    792 |   1001 |   **1166** |   1446 |   2020 |
+
+`vehicle` was missing at every threshold (0 detections at 0.15 too) — that is a **training-recall problem, not a threshold problem**.
+
+### Visual review at threshold 0.25
+
+5 sample frames saved to `data/snapshots/threshold_test/` (frames 10, 30, 50, 70, 90). Inspection findings:
+
+- **Frames 50, 70**: clean. Foreground worker correctly classified with high confidence (Hardhat 0.77–0.88, Safety Vest 0.62–0.89). Background workers also picked up.
+- **Frame 10**: contains one false `NO-Safety Vest 0.28` overlapping a `Safety Vest 0.27` on a worker who is wearing a vest — model double-detects on the same area.
+- **Frame 30**: contains one false `Mask 0.29` on a worker without a mask.
+- Borderline detections at 0.25–0.40 confidence are common, mostly correct.
+
+Most false positives are single-frame flickers. The **violation engine's `MIN_VIOLATION_DURATION_SECONDS=5` debouncing** will reject these — they need to persist across many frames to fire an alarm.
+
+### Live simulator at the new threshold
+
+```
+python backend/inference/live_simulator.py --detector rtdetr --conf 0.25 --headless --max-frames 200
+```
+
+Result over 200 frames (1 loop of `test_video_01.mp4`):
+
+| Metric                    | Was (conf=0.30) | Now (conf=0.25) |
+|---------------------------|----------------:|----------------:|
+| Avg FPS                   |            8.28 |        **8.33** |
+| Peak VRAM                 |          152 MB |          152 MB |
+| Unique workers            |               8 |          **14** |
+| **Violation track IDs**   |           **0** |           **3** |
+| Per-frame Hardhat         |            2.93 |            3.22 |
+| Per-frame Safety Vest     |            4.27 |            5.20 |
+| Per-frame Person          |            2.77 |            3.21 |
+
+Compliance-class growth is moderate (+10–22% per frame), suggesting the lower threshold mostly recovers legit detections rather than flooding false positives. **Violations now fire end-to-end** through ByteTrack, which is the key product unlock.
+
+### Decision
+
+- **Default `RTDetrDetector.conf_threshold`: 0.40 → 0.25.**
+- **Default `CONFIDENCE_THRESHOLD` in `.env.example`: 0.4 → 0.25.** (Existing `.env` is untouched so user overrides win.)
+- **`vehicle` is NOT recoverable via threshold tuning** — needs a re-training pass or a hybrid setup (use YOLO for `vehicle` detection only). Track this as a known model-quality issue.
+
 ## Known differences vs YOLOv8
 
 - **Tracker behavior**: RT-DETR uses supervision's ByteTrack with `minimum_consecutive_frames=2`, which means the first 1-2 frames after start return zero confirmed tracks even if `detect()` returns boxes. YOLO's ultralytics tracker confirms tracks immediately. Visible as a brief "warmup" delay on RT-DETR runs.

@@ -37,7 +37,9 @@
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install \"transformers==4.46.0\" supervision)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_rtdetr_vs_yolo.py)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --headless --max-frames 100 --snapshot-every 80)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --headless --max-frames 100 --snapshot-every 80)"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --headless --max-frames 100 --snapshot-every 80)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_rtdetr_thresholds.py)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --conf 0.25 --headless --max-frames 200)"
     ]
   }
 }

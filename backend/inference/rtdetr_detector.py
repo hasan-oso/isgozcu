@@ -29,7 +29,7 @@ class RTDetrDetector:
         self,
         model_path: str | Path = "backend/models/rtdetr_isgozcu_ppe_v1",
         device: str = "cuda",
-        conf_threshold: float = 0.4,
+        conf_threshold: float = 0.25,
         use_fp16: bool = True,
         track_buffer: int = 150,
     ) -> None:
