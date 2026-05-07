@@ -82,3 +82,52 @@ For Phase 2 (violation engine):
 2. **Plan to upgrade to YOLOv8m or YOLOv8s after the violation engine works.** YOLOv8m is ~25M params, expected ~3-5× slower but materially better small-object recall — still well under our 4 GB VRAM budget. We can A/B compare on the same videos using the benchmark in this file.
 3. **For the portrait/high-FPS sample**: consider a frame-skip option (process every Nth frame) for offline jobs where 16 FPS sustained is tight. Live mode would always need frame skipping at 60 FPS anyway.
 4. **Consider better output codec** (`avc1` H.264 instead of `mp4v`) — would shrink the 140 MB output to ~15-20 MB.
+
+## Test 3: CCTV-style image (test_image_01.jpg)
+
+Single-image test on a Gemini-generated CCTV-style still — fish-eye lens, indoor construction site, foreground worker plus several background workers on a raised platform.
+
+**Source:** `videos/samples/test_image_01.png`, 2730 × 1536 (4.19 MP)
+**Settings:** `conf=0.3`, `imgsz=640`, `half=True`, `device=cuda`, no tracking
+**Output:** `data/snapshots/test_image_01_detected.jpg`
+**Peak VRAM:** 15.97 MB
+
+### What the model saw
+
+| # | Class           | Conf  | Box (x1, y1, x2, y2)     | W × H px   |
+|---|-----------------|------:|--------------------------|------------|
+| 1 | Person          | 0.911 | (1275, 392, 1872, 1535)  | 597 × 1143 |
+| 2 | Safety Vest     | 0.939 | (1328, 775, 1774, 1453)  | 446 × 678  |
+| 3 | Hardhat         | 0.737 | (1406, 396, 1685, 583)   | 279 × 187  |
+| 4 | NO-Mask         | 0.696 | (1455, 691, 1613, 806)   | 158 × 115  |
+
+All four detections sit on the **same foreground worker**. None on background workers.
+
+### Reality check
+
+| Visible in image                               | Detected | Notes |
+|------------------------------------------------|---------:|-------|
+| Foreground worker — Person                     | ✅       | conf 0.91 |
+| Foreground worker — Hardhat (tan)              | ✅       | conf 0.74 |
+| Foreground worker — Safety Vest (lime hi-vis)  | ✅       | conf 0.94 |
+| Foreground worker — Mask                       | ✅ (NO-Mask, 0.70) | correct: no mask present |
+| Background worker(s) on upper platform (~3, yellow vests + helmets) | ❌ | all missed |
+| Background worker(s) mid-ground left          | ❌       | missed |
+| Yellow tower-crane base / machinery            | ❌       | missed (would expect `machinery`) |
+| Yellow no-entry sign                           | ❌       | n/a — not a model class |
+
+Compliance rate computed by the script: 100% Hardhat, 100% Vest. **Mathematically true (1 of 1 each), practically misleading** — the score is 100% only because the model never saw the other 5 workers.
+
+### Why background workers were missed
+
+The image is 2730 × 1536. YOLO downscales to `imgsz=640` for inference — a 4.27× scale-down. A 90 px-tall background worker becomes ~21 px in the inference frame, which is at or below YOLOv8n's effective minimum object size. Combined with fish-eye distortion compressing the periphery, the small-object recall collapses.
+
+### What this changes about the recommendation
+
+The Phase 1.5 conclusion ("don't switch models yet, build the violation engine") still holds for **video pipelines processing 720p–1080p footage where workers are reasonably sized**. For **CCTV-style stills with multiple distance-stratified subjects**, this model is meaningfully under-recalling. Two cheap fixes worth A/B-ing before swapping models:
+
+1. **Increase `imgsz` for stills** (e.g. 1280 or 1536) — single-image inference cost scales quadratically but VRAM headroom is huge (we used 0.4% of 4 GB).
+2. **Tile-then-merge inference** — split the image into 2×2 or 3×3 overlapping tiles, run inference per tile at native resolution, deduplicate boxes by NMS. Standard SAHI-style approach; works well for small objects.
+
+If neither helps, the upgrade path is the same as before: YOLOv8m, retrain on a higher-resolution PPE dataset, or both.
+

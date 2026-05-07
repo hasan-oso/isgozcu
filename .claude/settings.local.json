@@ -28,7 +28,8 @@
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c ' *)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install mediapipe)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install \"mediapipe==0.10.21\")",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_live_pipeline_headless.py)"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_live_pipeline_headless.py)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/test_image.py --input videos/samples/test_image_01.png)"
     ]
   }
 }
