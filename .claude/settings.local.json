@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m venv venv)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install --upgrade pip)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe C:/Users/Efendi.Tec/isgozcu/tests/test_gpu.py)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install ultralytics opencv-python numpy pillow python-dotenv supabase fastapi \"uvicorn[standard]\" pydantic python-multipart)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip freeze)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}

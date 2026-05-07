@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+videos/samples/*.mp4
+videos/outputs/*.mp4
+data/snapshots/*.jpg
+data/snapshots/*.png
+backend/models/*.pt
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
