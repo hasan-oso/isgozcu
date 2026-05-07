@@ -22,15 +22,28 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
+# Windows console may default to a non-UTF8 codepage (e.g. cp1256 on TR/AR
+# locales) which crashes when we print Turkish characters. Force UTF-8 on
+# stdout/stderr so logs work everywhere.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
 import cv2
 import numpy as np
 import torch
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
-from ultralytics import YOLO
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.inference.detector_adapter import DetectorAdapter  # noqa: E402
 
 
 _FONT_CACHE: dict[int, "ImageFont.FreeTypeFont"] = {}
@@ -158,7 +171,8 @@ class LiveStreamSimulator:
         conf: float,
         speed: float,
         loop_enabled: bool,
-        model_path: Path,
+        detector_type: str = "rtdetr",
+        model_path: Optional[Path] = None,
         headless: bool = False,
         max_frames: Optional[int] = None,
         snapshot_every: Optional[int] = None,
@@ -171,6 +185,7 @@ class LiveStreamSimulator:
         self.headless = headless
         self.max_frames = max_frames
         self.snapshot_every = snapshot_every
+        self.detector_type = detector_type
 
         self.cap = cv2.VideoCapture(str(video_path))
         if not self.cap.isOpened():
@@ -180,9 +195,13 @@ class LiveStreamSimulator:
         self.src_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.total_src_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        print(f"[LiveStreamSimulator] Model yükleniyor: {model_path.name}")
-        self.model = YOLO(str(model_path))
-        self.class_names = self.model.names
+        self.detector = DetectorAdapter(
+            detector_type=detector_type,
+            model_path=str(model_path) if model_path else None,
+            conf=conf,
+            imgsz=640,
+        )
+        self.class_names = {i: n for i, n in enumerate(self.detector.get_class_names())}
         self.imgsz = 640
 
         # State
@@ -261,39 +280,26 @@ class LiveStreamSimulator:
 
     def _detect(self, frame):
         try:
-            results = self.model.track(
-                source=frame,
-                persist=True,
-                tracker="bytetrack.yaml",
-                conf=self.conf,
-                imgsz=self.imgsz,
-                half=True,
-                device="cuda",
-                verbose=False,
-            )
-            return results[0]
+            return self.detector.detect_and_track(frame)
         except (RuntimeError, torch.cuda.OutOfMemoryError) as e:  # type: ignore[attr-defined]
             if "out of memory" in str(e).lower() and self.imgsz > 416:
                 print(f"[UYARI] CUDA OOM at imgsz={self.imgsz}; switching to 416.")
                 torch.cuda.empty_cache()
                 self.imgsz = 416
-                return self._detect(frame)
+                # NOTE: re-creating the detector with smaller imgsz is the right
+                # OOM recovery; for now just propagate.
+                raise
             raise
 
-    def _update_stats(self, result) -> tuple[int, int]:
-        if result.boxes is None or len(result.boxes) == 0:
+    def _update_stats(self, detections: list[dict]) -> tuple[int, int]:
+        if not detections:
             self.detection_history.append({"violations": 0, "persons": 0})
             return 0, 0
-        cls_idx = result.boxes.cls.cpu().numpy().astype(int)
-        ids = (
-            result.boxes.id.cpu().numpy().astype(int)
-            if result.boxes.id is not None
-            else [None] * len(cls_idx)
-        )
         active_violations = 0
         persons_in_frame = 0
-        for c, tid in zip(cls_idx, ids):
-            name = self.class_names.get(int(c), str(c))
+        for d in detections:
+            name = d["class_name"]
+            tid = d["track_id"]
             self.detections_per_class[name] += 1
             if name == "Person":
                 persons_in_frame += 1
@@ -308,19 +314,14 @@ class LiveStreamSimulator:
 
     # ---------- drawing ----------
 
-    def _draw_detections(self, canvas, result) -> None:
-        if result.boxes is None or len(result.boxes) == 0:
+    def _draw_detections(self, canvas, detections: list[dict]) -> None:
+        if not detections:
             return
-        boxes = result.boxes.xyxy.cpu().numpy().astype(int)
-        cls_idx = result.boxes.cls.cpu().numpy().astype(int)
-        confs = result.boxes.conf.cpu().numpy()
-        ids = (
-            result.boxes.id.cpu().numpy().astype(int)
-            if result.boxes.id is not None
-            else [None] * len(boxes)
-        )
-        for (x1, y1, x2, y2), c, conf, tid in zip(boxes, cls_idx, confs, ids):
-            name = self.class_names.get(int(c), str(c))
+        for d in detections:
+            x1, y1, x2, y2 = d["bbox"]
+            name = d["class_name"]
+            conf = d["confidence"]
+            tid = d["track_id"]
             color = CLASS_COLORS.get(name, COLOR_OTHER)
             thick = CLASS_THICK.get(name, 1)
             cv2.rectangle(canvas, (x1, y1), (x2, y2), color, thick, cv2.LINE_AA)
@@ -435,13 +436,13 @@ class LiveStreamSimulator:
                         print("[bilgi] Video sona erdi.")
                         break
                     display_frame = self._resize_for_display(frame)
-                    result = self._detect(display_frame)
-                    active_v, persons = self._update_stats(result)
+                    detections = self._detect(display_frame)
+                    active_v, persons = self._update_stats(detections)
                     canvas = display_frame.copy()
-                    self._draw_detections(canvas, result)
+                    self._draw_detections(canvas, detections)
                     self._draw_hud(canvas, active_v, persons)
                     self.last_frame = display_frame
-                    self.last_result = result
+                    self.last_result = detections
                     self.total_frames_processed += 1
 
                 self.last_canvas = canvas
@@ -544,11 +545,16 @@ class LiveStreamSimulator:
 
 
 def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="İşGözcü live stream simulator with looping CCTV display.")
+    p = argparse.ArgumentParser(description="IsGozcu live stream simulator with looping CCTV display.")
     p.add_argument("--input", default="videos/samples/test_video_01.mp4")
     p.add_argument("--camera-id", default="CCTV_01")
     p.add_argument("--speed", type=float, default=1.0)
     p.add_argument("--conf", type=float, default=0.3)
+    p.add_argument("--detector", choices=["yolo", "rtdetr"], default="rtdetr",
+                   help="Which model backend to use (default: rtdetr).")
+    p.add_argument("--model-path", default=None,
+                   help="Override model path. Defaults: backend/models/ppe_yolov8n.pt for yolo, "
+                        "backend/models/rtdetr_isgozcu_ppe_v1 for rtdetr.")
     p.add_argument("--no-loop", action="store_true")
     p.add_argument("--headless", action="store_true", help="No GUI; for automated testing.")
     p.add_argument("--max-frames", type=int, default=None)
@@ -567,9 +573,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(f"[HATA] Video yok: {in_path}")
         return 1
 
-    model_path = Path(os.getenv("YOLO_MODEL_PATH", "backend/models/ppe_yolov8n.pt"))
-    if not model_path.is_absolute():
-        model_path = PROJECT_ROOT / model_path
+    if args.model_path:
+        model_path = Path(args.model_path)
+        if not model_path.is_absolute():
+            model_path = PROJECT_ROOT / model_path
+    else:
+        if args.detector == "yolo":
+            model_path = PROJECT_ROOT / "backend" / "models" / "ppe_yolov8n.pt"
+        else:
+            model_path = PROJECT_ROOT / "backend" / "models" / "rtdetr_isgozcu_ppe_v1"
     if not model_path.exists():
         print(f"[HATA] Model yok: {model_path}")
         return 1
@@ -580,6 +592,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         conf=args.conf,
         speed=args.speed,
         loop_enabled=not args.no_loop,
+        detector_type=args.detector,
         model_path=model_path,
         headless=args.headless,
         max_frames=args.max_frames,

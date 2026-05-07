@@ -33,7 +33,11 @@
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/utils/video_info.py videos/samples/test_video_01.mp4)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('C:/Users/Efendi.Tec/isgozcu/backend/inference/live_simulator.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe C:/Users/Efendi.Tec/isgozcu/backend/inference/live_simulator.py --help)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --headless --max-frames 400 --speed 4.0 --snapshot-every 100)"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --headless --max-frames 400 --speed 4.0 --snapshot-every 100)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install \"transformers==4.46.0\" supervision)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_rtdetr_vs_yolo.py)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --headless --max-frames 100 --snapshot-every 80)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --headless --max-frames 100 --snapshot-every 80)"
     ]
   }
 }

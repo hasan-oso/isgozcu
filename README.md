@@ -64,11 +64,28 @@ isgozcu/
 
 ## Technology / Teknoloji
 
-- **Detection & Tracking**: YOLOv8 + ByteTrack (via `ultralytics`)
+- **Detection**: RT-DETR (Apache 2.0) via HuggingFace `transformers`, fine-tuned on the Construction Site Safety dataset (CC BY 4.0).
+- **Tracking**: ByteTrack via `supervision` (MIT)
+- **Legacy**: YOLOv8 (AGPL-3.0) is kept around for benchmarking only — selectable with `--detector yolo` in the live simulator. **Not used in production paths.**
 - **Backend**: FastAPI + Uvicorn
 - **Database**: Supabase (PostgreSQL)
 - **Frontend**: Next.js (separate folder)
 - **GPU**: NVIDIA CUDA 12.1 (PyTorch)
+
+### License compliance
+
+The production inference stack is **clean for commercial deployment**:
+
+| Component                              | License     |
+|----------------------------------------|-------------|
+| RT-DETR architecture (Baidu)            | Apache 2.0  |
+| Trained model weights                   | Apache 2.0  |
+| `transformers` (HuggingFace)            | Apache 2.0  |
+| `supervision` (Roboflow)                | MIT         |
+| Construction Site Safety dataset        | CC BY 4.0   |
+| PyTorch                                 | BSD-style   |
+
+YOLOv8 (AGPL-3.0) is no longer in any production inference path. See [docs/migration_yolo_to_rtdetr.md](docs/migration_yolo_to_rtdetr.md) for the full rationale and the YOLO-vs-RT-DETR benchmark.
 
 ## Compliance / Uyum
 

@@ -8,6 +8,7 @@ videos/outputs/*.mp4
 data/snapshots/*.jpg
 data/snapshots/*.png
 backend/models/*.pt
+backend/models/*/
 .vscode/
 .idea/
 *.log
