@@ -102,6 +102,34 @@ Optional persistence layer for violation events + evidence snapshots.
 
 Supabase failures never crash the simulator — it falls back to local-only mode and prints `[uyarı] Supabase ...` on the console. The HUD shows a small green / yellow / red / gray dot next to LIVE indicating last sync state, plus `Yüklenen: N` in the bottom-right stats panel.
 
+### Frontend Setup (Phase 3.1)
+
+Dark-blue Next.js 16 dashboard for the safety operator. Lives in [frontend/](frontend/) with its own `package.json`, no shared deps with the Python backend.
+
+```powershell
+cd frontend
+# .env.local is created automatically the first time you run the simulator;
+# you can also copy it from the parent .env (only NEXT_PUBLIC_SUPABASE_URL +
+# NEXT_PUBLIC_SUPABASE_ANON_KEY are needed).
+npm install
+npm run dev   # http://localhost:3000
+npm run build # production build (Turbopack)
+```
+
+Routes today:
+
+| Path | Purpose |
+|---|---|
+| `/`         | Live dashboard — 4 metric cards, live-stream placeholder, recent violations |
+| `/ihlaller` | Violations list (placeholder for now) |
+| `/raporlar` | Reports + PDF export (placeholder) |
+| `/isciler`  | Anonymous worker tracking (placeholder) |
+| `/ayarlar`  | Settings (placeholder) |
+
+Theme: a dark blue palette (`bg-bg-page`, `bg-bg-panel`, accent `#185fa5`, danger `#d83b3b`) defined in [globals.css](frontend/src/app/globals.css). Inter font via `next/font/google`. All UI strings are in Turkish; code, file names and component identifiers are English.
+
+> **Note**: anonymous reads on the Supabase tables require RLS policies allowing `SELECT` for the `anon` role. See [docs/supabase_integration.md](docs/supabase_integration.md) for the SQL.
+
 ## Compliance / Uyum
 
 KVKK (Türkiye Kişisel Verilerin Korunması Kanunu) compliant:

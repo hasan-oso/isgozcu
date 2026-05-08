@@ -52,7 +52,13 @@
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --headless --max-frames 600)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_supabase_upload.py)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --conf 0.25 --violation-threshold 0.15 --min-duration 3.0 --supabase --headless --max-frames 600)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --violation-threshold 0.15 --min-duration 3.0 --supabase --headless --max-frames 600)"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector yolo --conf 0.4 --violation-threshold 0.15 --min-duration 3.0 --supabase --headless --max-frames 600)",
+      "Bash(npm --version)",
+      "Bash(npx create-next-app@latest frontend --typescript --app --tailwind --eslint --src-dir --import-alias \"@/*\" --use-npm --turbopack --yes)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /tmp/page.html -w \"HTTP %{http_code} | %{size_download} bytes | %{time_total}s\\\\n\" http://localhost:3000/)",
+      "Read(//tmp/**)",
+      "Bash(taskkill //F //IM node.exe)"
     ]
   }
 }

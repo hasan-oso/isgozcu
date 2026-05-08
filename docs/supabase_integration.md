@@ -142,6 +142,30 @@ Check the console for `[uyarı] Supabase ...` lines. The most common cause is `-
 **Snapshot URL returns 404**
 Bucket is private. Either make it public, or generate signed URLs (not implemented yet — Phase 2C.3 candidate).
 
+## RLS policies for the public dashboard (Phase 3.1)
+
+The Next.js dashboard reads via the **anon** key (the only key safe to ship to a browser). If RLS is enabled on the four tables and no policy allows `anon` to `SELECT`, the dashboard renders correctly but every count is 0.
+
+Paste this in the Supabase SQL editor to allow read-only access (no inserts/updates/deletes for `anon`):
+
+```sql
+-- Public read for the demo dashboard. Writes still require service-role.
+ALTER TABLE public.sites    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cameras  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workers  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.events   ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "anon_read_sites"   ON public.sites   FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_cameras" ON public.cameras FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_workers" ON public.workers FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_events"  ON public.events  FOR SELECT TO anon USING (true);
+
+-- Storage bucket 'snapshots' should already be set to public read
+-- via the dashboard ("Buckets → snapshots → make public").
+```
+
+After applying, refresh the dashboard — the metric cards and "Son İhlaller" list will populate immediately.
+
 ## Internal files
 
 - `backend/storage/__init__.py` — re-exports the four classes
