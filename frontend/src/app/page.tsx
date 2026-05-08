@@ -4,6 +4,7 @@ import { tr } from "date-fns/locale";
 import { MetricCard } from "@/components/ui/metric-card";
 import { ViolationRow } from "@/components/violations/violation-row";
 import { LiveBadge } from "@/components/ui/live-badge";
+import { RealtimeRefresh } from "@/components/home/realtime-refresh";
 import { getServerClient } from "@/lib/supabase/server";
 import type {
   ViolationEventWithWorker,
@@ -90,7 +91,10 @@ export default async function HomePage() {
     <div className="px-6 py-5">
       <div className="mb-4 flex items-baseline justify-between">
         <h1 className="text-xl font-semibold text-text-primary">Genel Bakış</h1>
-        <span className="text-xs text-text-muted">{nowLabel}</span>
+        <div className="flex items-center gap-3">
+          <RealtimeRefresh />
+          <span className="text-xs text-text-muted">{nowLabel}</span>
+        </div>
       </div>
 
       {data.errorMessage ? (

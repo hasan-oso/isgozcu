@@ -116,15 +116,17 @@ npm run dev   # http://localhost:3000
 npm run build # production build (Turbopack)
 ```
 
-Routes today:
+Routes today (Phase 3.2):
 
 | Path | Purpose |
 |---|---|
-| `/`         | Live dashboard — 4 metric cards, live-stream placeholder, recent violations |
-| `/ihlaller` | Violations list (placeholder for now) |
-| `/raporlar` | Reports + PDF export (placeholder) |
-| `/isciler`  | Anonymous worker tracking (placeholder) |
+| `/`         | Live dashboard — 4 metric cards, live-stream placeholder, recent violations, **realtime auto-refresh** when new events fire |
+| `/ihlaller` | Violations table — date range / type / camera / status filters in URL params, snapshot thumbnails, "Detay" dialog with full snapshot + metadata, pagination |
+| `/raporlar` | Reports — 4 stat cards (Toplam İhlal / Ortalama Süre / Etkilenen İşçi / En Sık İhlal), daily trend line chart, type pie chart, hourly bar chart. Time range tabs (Bugün / Bu Hafta / Bu Ay / Son 30 Gün) |
+| `/isciler`  | Worker grid — search by tracker_id, per-worker card with last violation, detail dialog with full event timeline |
 | `/ayarlar`  | Settings (placeholder) |
+
+**Realtime**: the home page subscribes to `events` table changes via Supabase Realtime websocket. When a new violation INSERTs (or one resolves), the page calls `router.refresh()` and the metric cards + recent-violations list update without a full reload. A small "Canlı bağlantı" pill in the page header shows the websocket status (green = connected, yellow = connecting, red = disconnected).
 
 Theme: a dark blue palette (`bg-bg-page`, `bg-bg-panel`, accent `#185fa5`, danger `#d83b3b`) defined in [globals.css](frontend/src/app/globals.css). Inter font via `next/font/google`. All UI strings are in Turkish; code, file names and component identifiers are English.
 

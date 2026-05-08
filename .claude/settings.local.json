@@ -58,7 +58,12 @@
       "Bash(npm run *)",
       "Bash(curl -s -o /tmp/page.html -w \"HTTP %{http_code} | %{size_download} bytes | %{time_total}s\\\\n\" http://localhost:3000/)",
       "Read(//tmp/**)",
-      "Bash(taskkill //F //IM node.exe)"
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(npm install *)",
+      "Bash(curl -s http://localhost:3000/ihlaller -o /tmp/ihlaller.html)",
+      "Bash(curl -s http://localhost:3000/isciler -o /tmp/isciler.html)",
+      "Bash(curl -s http://localhost:3000/raporlar -o /tmp/raporlar.html)",
+      "Bash(curl -s \"http://localhost:3000/\" -o /tmp/home.html)"
     ]
   }
 }
