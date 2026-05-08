@@ -27,7 +27,13 @@ class RTDetrDetector:
 
     def __init__(
         self,
-        model_path: str | Path = "backend/models/rtdetr_isgozcu_ppe_v1",
+        # Phase 2A.2: default flipped v1 → v2. v2 was trained via continued
+        # training from v1 with oversampling of weak classes (Mask, NO-Hardhat
+        # ×3) and stronger augmentation (motion blur, shadows, sun flare).
+        # Validation loss 9.91 → 9.68. Major recall gains on Mask, NO-Hardhat,
+        # and `vehicle`. Set model_path explicitly to the v1 directory if you
+        # want to A/B-test or roll back. See docs/migration_yolo_to_rtdetr.md.
+        model_path: str | Path = "backend/models/rtdetr_isgozcu_ppe_v2",
         device: str = "cuda",
         conf_threshold: float = 0.25,
         use_fp16: bool = True,

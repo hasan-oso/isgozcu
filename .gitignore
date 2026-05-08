@@ -12,6 +12,7 @@ data/snapshots/**/*.png
 data/reports/
 backend/models/*.pt
 backend/models/*/
+backend/models/*.zip
 .vscode/
 .idea/
 *.log

@@ -677,7 +677,10 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
                    help="Which model backend to use (default: rtdetr).")
     p.add_argument("--model-path", default=None,
                    help="Override model path. Defaults: backend/models/ppe_yolov8n.pt for yolo, "
-                        "backend/models/rtdetr_isgozcu_ppe_v1 for rtdetr.")
+                        "backend/models/rtdetr_isgozcu_ppe_v2 for rtdetr (--model-version v1 to roll back).")
+    p.add_argument("--model-version", choices=["v1", "v2"], default="v2",
+                   help="Which RT-DETR checkpoint to load when --detector rtdetr "
+                        "and no --model-path is given (default: v2).")
     p.add_argument("--no-loop", action="store_true")
     p.add_argument("--headless", action="store_true", help="No GUI; for automated testing.")
     p.add_argument("--max-frames", type=int, default=None)
@@ -714,7 +717,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         if args.detector == "yolo":
             model_path = PROJECT_ROOT / "backend" / "models" / "ppe_yolov8n.pt"
         else:
-            model_path = PROJECT_ROOT / "backend" / "models" / "rtdetr_isgozcu_ppe_v1"
+            model_path = PROJECT_ROOT / "backend" / "models" / f"rtdetr_isgozcu_ppe_{args.model_version}"
     if not model_path.exists():
         print(f"[HATA] Model yok: {model_path}")
         return 1

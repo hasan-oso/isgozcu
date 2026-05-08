@@ -64,7 +64,7 @@ isgozcu/
 
 ## Technology / Teknoloji
 
-- **Detection**: RT-DETR (Apache 2.0) via HuggingFace `transformers`, fine-tuned on the Construction Site Safety dataset (CC BY 4.0).
+- **Detection**: RT-DETR (Apache 2.0) via HuggingFace `transformers`, fine-tuned on the Construction Site Safety dataset (CC BY 4.0). Active checkpoint is **v2** (`backend/models/rtdetr_isgozcu_ppe_v2`) — continued training from v1 with oversampling for `Mask` / `NO-Hardhat` and stronger augmentation; v1 stays on disk for rollback (`--model-version v1`).
 - **Tracking**: ByteTrack via `supervision` (MIT)
 - **Legacy**: YOLOv8 (AGPL-3.0) is kept around for benchmarking only — selectable with `--detector yolo` in the live simulator. **Not used in production paths.**
 - **Backend**: FastAPI + Uvicorn

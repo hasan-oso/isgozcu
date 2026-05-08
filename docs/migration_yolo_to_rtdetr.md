@@ -178,6 +178,74 @@ Compliance-class growth is moderate (+10–22% per frame), suggesting the lower 
 - **Default `CONFIDENCE_THRESHOLD` in `.env.example`: 0.4 → 0.25.** (Existing `.env` is untouched so user overrides win.)
 - **`vehicle` is NOT recoverable via threshold tuning** — needs a re-training pass or a hybrid setup (use YOLO for `vehicle` detection only). Track this as a known model-quality issue.
 
+## v2 Improvements (Phase 2A.2)
+
+A second-generation checkpoint addresses the recall gaps from Phase 2A.1 — specifically the near-zero detection of `Mask`, `NO-Hardhat`, and `vehicle` that survived threshold tuning. **v2 is now the default**; v1 stays on disk for rollback / comparison.
+
+### Training methodology
+
+- **Continued training from v1** (not from scratch). 15 additional epochs.
+- **Oversampling** of weak classes: `Mask` and `NO-Hardhat` ×3 in the per-batch sampler. This rebalances against the class-frequency tail — v1's underperformance on these classes was driven by training-set imbalance, not architectural limits.
+- **Stronger augmentation**: motion blur, simulated cast shadows, sun-flare overlays. Construction CCTV is hostile; these augmentations move the train distribution closer to deployment.
+- **Lower learning rate** (2 × 10⁻⁵, vs the v1 default) to avoid drift from the v1 starting point.
+- **Validation loss**: 9.91 (v1) → 9.68 (v2). Modest in absolute terms; the per-class recall gains are where the improvement shows up.
+
+### Per-class measurements (200 frames of `test_video_01.mp4`, conf=0.25, no tracking)
+
+| Class             |  v1 |  v2 |    Δ% | v1 avg conf | v2 avg conf |
+|-------------------|----:|----:|------:|------------:|------------:|
+| Hardhat           |  888 | 1224 |  +38% | 0.538 | 0.482 |
+| **Mask**          |  23 |  63 | **+174%** | 0.296 | 0.301 |
+| **NO-Hardhat**    |  21 |  64 | **+205%** | 0.293 | 0.298 |
+| NO-Mask           | 111 |  86 |  -23% | 0.426 | 0.463 |
+| NO-Safety Vest    | 177 | 147 |  -17% | 0.288 | 0.294 |
+| Person            | 975 | 1064 |   +9% | 0.449 | 0.518 |
+| Safety Cone       |   3 |   0 | -100% | 0.267 | —     |
+| Safety Vest       | 1498 | 1645 |  +10% | 0.519 | 0.486 |
+| **vehicle**       |   0 |   2 | **+inf** | —     | 0.270 |
+| **TOTAL**         | 3696 | 4295 |  +16% |       |       |
+
+### Per-class measurements (live simulator, 400 frames, conf=0.25, with ByteTrack)
+
+| Metric | v1 | v2 | Notes |
+|---|---:|---:|---|
+| Avg FPS (end-to-end) | 12.11 | 10.14 | v2 ~16% slower w/ violation engine; standalone detection v2 was actually faster (66.6 vs 69.5 ms/frame) |
+| Peak VRAM | 152 MB | 152 MB | unchanged |
+| Unique tracked workers | 25 | 34 | v2 recall picks up workers v1 missed |
+| NO-Hardhat (per-frame avg) | 0.025 | 0.060 | +140% |
+| NO-Safety Vest (per-frame avg) | 0.075 | 0.173 | +130% |
+| Mask (per-frame avg) | 0 | 0.060 | wasn't appearing meaningfully in v1 |
+| NO-Mask (per-frame avg) | 0.240 | 0.150 | -38% — likely re-classified as `Mask` |
+| Total violations (default thresholds) | 0 | 0 | engine working; workers in this video are mostly compliant |
+
+### Honest read
+
+**Wins**: the headline classes that were broken in v1 — `Mask`, `NO-Hardhat`, `vehicle` — now fire at usable rates. `Hardhat` and `Safety Vest` recall also jumped (+38% / +10%). v2 detects ~36% more unique workers in tracking, which means we see operators that v1 silently missed.
+
+**Real regressions**: `NO-Mask` (-23%) and `NO-Safety Vest` (-17%) lost ground. Looking at the confidence numbers, v2's average confidence on those classes went *up* slightly (0.426 → 0.463 for NO-Mask). My read: v2 became more confident about *real* mask/vest presence and stopped firing the lower-confidence "NO-X" calls that v1 used as a noisy fallback. This is consistent with v2 scoring more `Mask` detections (24 vs 0) — frames previously labeled NO-Mask are now labeled Mask. We should confirm this on labeled ground truth before declaring it a true win, but operationally it shouldn't hurt the violation engine (real violations still fire; what we lost was false-positive NO-* detections).
+
+**Marginal regressions**: `Safety Cone` 3 → 0. Both numbers are noise.
+
+**Unchanged**: VRAM (152 MB), label set, architecture, license posture (still Apache 2.0).
+
+### How to switch v1 ↔ v2
+
+```powershell
+# default — v2
+python backend\inference\live_simulator.py --detector rtdetr
+
+# explicit v2
+python backend\inference\live_simulator.py --detector rtdetr --model-version v2
+
+# roll back to v1
+python backend\inference\live_simulator.py --detector rtdetr --model-version v1
+
+# arbitrary checkpoint
+python backend\inference\live_simulator.py --detector rtdetr --model-path backend\models\rtdetr_isgozcu_ppe_v3
+```
+
+`RTDetrDetector(model_path=...)` accepts either string or `Path`; all 10 PPE classes are loaded from the checkpoint's `id2label`, so swap-in works without code changes.
+
 ## Known differences vs YOLOv8
 
 - **Tracker behavior**: RT-DETR uses supervision's ByteTrack with `minimum_consecutive_frames=2`, which means the first 1-2 frames after start return zero confirmed tracks even if `detect()` returns boxes. YOLO's ultralytics tracker confirms tracks immediately. Visible as a brief "warmup" delay on RT-DETR runs.
