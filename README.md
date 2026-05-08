@@ -87,6 +87,21 @@ The production inference stack is **clean for commercial deployment**:
 
 YOLOv8 (AGPL-3.0) is no longer in any production inference path. See [docs/migration_yolo_to_rtdetr.md](docs/migration_yolo_to_rtdetr.md) for the full rationale and the YOLO-vs-RT-DETR benchmark.
 
+### Supabase Setup
+
+Optional persistence layer for violation events + evidence snapshots.
+
+1. Create a Supabase project + a public storage bucket named `snapshots`.
+2. Apply the schema (4 tables: `sites`, `cameras`, `workers`, `events`). See [docs/supabase_integration.md](docs/supabase_integration.md) for the schema reference.
+3. Copy `.env.example` to `.env` and fill in `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
+4. Run the smoke test: `python tests\test_supabase_upload.py`.
+5. Enable on the live simulator with `--supabase`:
+   ```powershell
+   python backend\inference\live_simulator.py --supabase
+   ```
+
+Supabase failures never crash the simulator — it falls back to local-only mode and prints `[uyarı] Supabase ...` on the console. The HUD shows a small green / yellow / red / gray dot next to LIVE indicating last sync state, plus `Yüklenen: N` in the bottom-right stats panel.
+
 ## Compliance / Uyum
 
 KVKK (Türkiye Kişisel Verilerin Korunması Kanunu) compliant:

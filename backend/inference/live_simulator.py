@@ -54,6 +54,18 @@ from backend.inference.violation_engine import (  # noqa: E402
 )
 
 
+# Supabase imports are lazy: only loaded if --supabase is passed, so the
+# default code path stays fast and doesn't error if .env is missing keys.
+def _import_supabase():
+    from backend.storage.supabase_client import (  # noqa: WPS433
+        EventUploader,
+        SiteManager,
+        SupabaseClient,
+        WorkerRegistry,
+    )
+    return SupabaseClient, SiteManager, WorkerRegistry, EventUploader
+
+
 # Colors (BGR)
 COLOR_PERSON = (200, 100, 0)
 COLOR_HARDHAT = (0, 255, 0)
@@ -128,6 +140,8 @@ class LiveStreamSimulator:
         min_violation_duration: float = 5.0,
         violation_threshold: float = 0.7,
         recovery_threshold: float = 0.3,
+        enable_supabase: bool = False,
+        site_name: str = "Demo Şantiye",
     ) -> None:
         self.video_path = video_path
         self.camera_id = camera_id
@@ -179,6 +193,34 @@ class LiveStreamSimulator:
         # worker_id -> list of active violation_types (rebuilt every frame)
         self.active_worker_violations: dict[int, list[str]] = {}
         self._session_started_at = datetime.now()
+
+        # Supabase persistence (opt-in via --supabase). Failures degrade
+        # gracefully to local-only mode.
+        self.supabase_enabled = False
+        self.event_uploader = None
+        self.worker_registry = None
+        self.supabase_status: str = "disabled"  # disabled | idle | syncing | ok | error
+        self.supabase_uploaded_count: int = 0
+        if enable_supabase:
+            try:
+                SupabaseClient, SiteManager, WorkerRegistry, EventUploader = _import_supabase()
+                sb = SupabaseClient()
+                if not sb.health_check():
+                    print("[uyarı] Supabase health check başarısız — yerel modda devam.")
+                else:
+                    site_mgr = SiteManager(sb)
+                    site_id = site_mgr.get_or_create_site(site_name, location="Ankara, Türkiye")
+                    cam_uuid = site_mgr.get_or_create_camera(site_id, camera_id) if site_id else None
+                    if site_id and cam_uuid:
+                        self.worker_registry = WorkerRegistry(sb, site_id)
+                        self.event_uploader = EventUploader(sb, cam_uuid, self.worker_registry)
+                        self.supabase_enabled = True
+                        self.supabase_status = "idle"
+                        print(f"[bilgi] Supabase aktif (site={site_id[:8]}.. cam={cam_uuid[:8]}..).")
+                    else:
+                        print("[uyarı] Supabase bağlamı oluşturulamadı — yerel modda devam.")
+            except Exception as e:
+                print(f"[uyarı] Supabase başlatma hatası: {e} — yerel modda devam.")
 
         # State
         self.loop_count = 0
@@ -251,6 +293,11 @@ class LiveStreamSimulator:
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             self.loop_count += 1
             self.loop_overlay_until = time.time() + 1.2
+            # On loop boundary the tracker may reuse old IDs for new physical
+            # workers — clear the in-memory tracker_id → worker_uuid cache so
+            # we re-resolve via DB on the next sighting.
+            if self.worker_registry is not None:
+                self.worker_registry.reset_session_cache()
             ok, frame = self.cap.read()
         return ok, frame
 
@@ -295,11 +342,39 @@ class LiveStreamSimulator:
         for ev in result["new"]:
             print(f"[ihlal başladı] W{ev.worker_id:03d} - {ev.violation_label_tr} "
                   f"(conf {ev.confidence_avg:.2f}) -> {ev.snapshot_path}")
+            self._supabase_upload_new(ev)
         for ev in result["resolved"]:
             print(f"[ihlal bitti] W{ev.worker_id:03d} - {ev.violation_label_tr} - "
                   f"{ev.duration_seconds:.1f}s sürdü")
+            self._supabase_upload_resolution(ev)
 
         self.active_worker_violations = self.violation_detector.active_worker_violations()
+
+    def _supabase_upload_new(self, ev) -> None:
+        if not self.supabase_enabled or self.event_uploader is None:
+            return
+        self.supabase_status = "syncing"
+        try:
+            event_uuid = self.event_uploader.upload_event(ev)
+            if event_uuid is not None:
+                self.supabase_uploaded_count += 1
+                self.supabase_status = "ok"
+            else:
+                self.supabase_status = "error"
+        except Exception as e:
+            print(f"[uyarı] supabase upload error: {e}")
+            self.supabase_status = "error"
+
+    def _supabase_upload_resolution(self, ev) -> None:
+        if not self.supabase_enabled or self.event_uploader is None:
+            return
+        self.supabase_status = "syncing"
+        try:
+            ok = self.event_uploader.upload_event_resolution(ev)
+            self.supabase_status = "ok" if ok else "error"
+        except Exception as e:
+            print(f"[uyarı] supabase resolution upload error: {e}")
+            self.supabase_status = "error"
 
     def _detect(self, frame):
         try:
@@ -405,6 +480,18 @@ class LiveStreamSimulator:
         red_intensity = int(80 + 175 * opacity)
         cv2.circle(canvas, (w - 268, 28), 8, (0, 0, red_intensity), -1, cv2.LINE_AA)
         _put_text_outlined(canvas, "LIVE", (w - 248, 35), scale=0.7, thickness=2)
+        # Supabase sync dot (next to LIVE) — green=ok/idle, yellow=syncing,
+        # red=error, gray=disabled.
+        _sync_color = {
+            "ok": (60, 200, 60),
+            "idle": (60, 200, 60),
+            "syncing": (0, 200, 220),
+            "error": (60, 60, 220),
+            "disabled": (130, 130, 130),
+        }.get(self.supabase_status, (130, 130, 130))
+        cv2.circle(canvas, (w - 196, 28), 6, _sync_color, -1, cv2.LINE_AA)
+        cv2.circle(canvas, (w - 196, 28), 6, COLOR_BLACK, 1, cv2.LINE_AA)
+        _put_text_outlined(canvas, "SYNC", (w - 184, 33), scale=0.5)
         ts = datetime.now().strftime("%d.%m.%Y - %H:%M:%S")
         _put_text_outlined(canvas, ts, (w - 268, 60), scale=0.55)
 
@@ -431,7 +518,12 @@ class LiveStreamSimulator:
             total_count = len(self.violation_track_ids)
         viol_color = COLOR_RED if active_count else COLOR_WHITE
         _put_text_outlined(canvas, f"Aktif İhlal: {active_count}", (br_x + 12, br_y + 70), scale=0.65, thickness=2, fg=viol_color)
-        _put_text_outlined(canvas, f"Toplam İhlal: {total_count}", (br_x + 12, br_y + 92), scale=0.55)
+        # Either "Toplam İhlal" alone, or with a "Yüklenen" suffix when Supabase is on.
+        if self.supabase_enabled:
+            line = f"Toplam İhlal: {total_count}   Yüklenen: {self.supabase_uploaded_count}"
+        else:
+            line = f"Toplam İhlal: {total_count}"
+        _put_text_outlined(canvas, line, (br_x + 12, br_y + 92), scale=0.55)
 
         # Bottom controls strip
         _draw_translucent_box(canvas, 0, h - 40, w, 40, alpha=0.6)
@@ -593,7 +685,13 @@ class LiveStreamSimulator:
         # Finalize any still-active violations and write the JSON report
         report_path: Optional[Path] = None
         if self.violation_detector is not None:
+            still_active_ids = {ev.event_id for ev in self.violation_detector.get_active_violations()}
             self.violation_detector.finalize(self._video_time())
+            # Push the resolution to Supabase for events that were active at exit.
+            if self.supabase_enabled:
+                for ev in self.violation_detector.get_completed_violations():
+                    if ev.event_id in still_active_ids:
+                        self._supabase_upload_resolution(ev)
             report_path = self._write_session_report(elapsed)
 
         print()
@@ -695,6 +793,10 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
                    help="Non-compliance ratio that triggers a violation (default 0.7).")
     p.add_argument("--recovery-threshold", type=float, default=0.3,
                    help="Ratio below which an active violation ends. Must be < violation-threshold (default 0.3).")
+    p.add_argument("--supabase", action="store_true",
+                   help="Upload violation events + snapshots to Supabase (requires .env). Off by default.")
+    p.add_argument("--site-name", default="Demo Şantiye",
+                   help="Site name used when --supabase is on (default 'Demo Şantiye').")
     return p.parse_args(argv)
 
 
@@ -737,6 +839,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         min_violation_duration=args.min_duration,
         violation_threshold=args.violation_threshold,
         recovery_threshold=args.recovery_threshold,
+        enable_supabase=args.supabase,
+        site_name=args.site_name,
     )
     return sim.run()
 
