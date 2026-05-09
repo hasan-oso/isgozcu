@@ -126,7 +126,7 @@ def _draw_translucent_box(frame, x, y, w, h, alpha=0.55):
 class LiveStreamSimulator:
     def __init__(
         self,
-        video_path: Path,
+        video_path: Path | int,
         camera_id: str,
         conf: float,
         speed: float,
@@ -144,23 +144,40 @@ class LiveStreamSimulator:
         site_name: str = "Demo Şantiye",
     ) -> None:
         self.video_path = video_path
+        self.is_webcam = isinstance(video_path, int)
         self.camera_id = camera_id
         self.conf = conf
         self.speed = speed
-        self.loop_enabled = loop_enabled
+        # Live webcam streams have no end-of-file → looping is meaningless.
+        self.loop_enabled = loop_enabled and not self.is_webcam
         self.headless = headless
         self.max_frames = max_frames
         self.snapshot_every = snapshot_every
         self.detector_type = detector_type
         self.enable_violations = enable_violations
 
-        self.cap = cv2.VideoCapture(str(video_path))
+        if self.is_webcam:
+            # CAP_DSHOW is the most reliable backend on Windows.
+            self.cap = cv2.VideoCapture(int(video_path), cv2.CAP_DSHOW)
+            if self.cap.isOpened():
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                self.cap.set(cv2.CAP_PROP_FPS, 30)
+        else:
+            self.cap = cv2.VideoCapture(str(video_path))
         if not self.cap.isOpened():
             raise RuntimeError(f"Video açılamadı / could not open: {video_path}")
+        # Webcams often report fps=0 from the driver; fall back to 30 fps so the
+        # violation buffer / video-time clock advance at a sane rate.
         self.source_fps = self.cap.get(cv2.CAP_PROP_FPS) or 30.0
+        if self.is_webcam and self.source_fps < 1.0:
+            self.source_fps = 30.0
         self.src_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.src_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        self.total_src_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        # CAP_PROP_FRAME_COUNT is meaningless / -1 for webcams.
+        self.total_src_frames = (
+            0 if self.is_webcam else int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        )
 
         self.detector = DetectorAdapter(
             detector_type=detector_type,
@@ -744,7 +761,11 @@ class LiveStreamSimulator:
             "ended_at": datetime.now().isoformat(timespec="milliseconds"),
             "total_duration_seconds": round(elapsed_s, 3),
             "camera_id": self.camera_id,
-            "video_source": str(self.video_path),
+            "video_source": (
+                f"webcam:{int(self.video_path)}"
+                if self.is_webcam
+                else str(self.video_path)
+            ),
             "detector_type": self.detector_type,
             "loop_count": self.loop_count,
             "frames_processed": self.total_frames_processed,
@@ -804,12 +825,19 @@ def main(argv: Optional[list[str]] = None) -> int:
     _ensure_env(PROJECT_ROOT)
     args = _parse_args(argv)
 
-    in_path = Path(args.input)
-    if not in_path.is_absolute():
-        in_path = PROJECT_ROOT / in_path
-    if not in_path.exists():
-        print(f"[HATA] Video yok: {in_path}")
-        return 1
+    # `--input N` (digit string) is a webcam index; everything else is a path.
+    raw_input = args.input.strip() if isinstance(args.input, str) else args.input
+    if isinstance(raw_input, str) and raw_input.isdigit():
+        in_source: Path | int = int(raw_input)
+        print(f"[bilgi] Webcam modu: device index {in_source}")
+    else:
+        in_path = Path(raw_input)
+        if not in_path.is_absolute():
+            in_path = PROJECT_ROOT / in_path
+        if not in_path.exists():
+            print(f"[HATA] Video yok: {in_path}")
+            return 1
+        in_source = in_path
 
     if args.model_path:
         model_path = Path(args.model_path)
@@ -825,7 +853,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 1
 
     sim = LiveStreamSimulator(
-        video_path=in_path,
+        video_path=in_source,
         camera_id=args.camera_id,
         conf=args.conf,
         speed=args.speed,
