@@ -10,6 +10,7 @@ data/snapshots/*.png
 data/snapshots/**/*.jpg
 data/snapshots/**/*.png
 data/reports/
+data/training_images/
 backend/models/*.pt
 backend/models/*/
 backend/models/*.zip
