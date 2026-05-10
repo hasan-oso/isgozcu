@@ -14,6 +14,8 @@ data/training_images/
 data/training_images/annotations/
 data/training_images/coco/
 data/training_images/progress.json
+data/roboflow_dataset/
+data/roboflow_reannotation/
 backend/models/*.pt
 backend/models/*/
 backend/models/*.zip
