@@ -1,76 +1,34 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { getBrowserClient } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
-
-type Status = "connecting" | "connected" | "disconnected";
 
 /**
- * Subscribes to the `events` table and triggers a server-component refresh
- * whenever a row is inserted, updated, or deleted. Lightweight: we don't
- * track individual changes — Next's RSC re-render brings the latest data.
+ * Silent background poller that calls `router.refresh()` every 2 seconds
+ * so the home page re-fetches its server-component data (metric cards,
+ * Aktif İhlal, Son İhlaller).
  *
- * Renders a small status pill: "Canlı bağlantı" (green dot) when subscribed.
+ * Phase 3.5 replaced the previous Supabase `postgres_changes` realtime
+ * subscription with this simple polling loop. We trade ~0.5 s of latency
+ * for rock-solid behaviour over USB-tethered 4G, WebSocket-hostile
+ * proxies, and intermittent RLS hiccups — the kinds of failure modes the
+ * realtime channel was prone to during demos.
+ *
+ * Renders nothing — the status pill that lived here was tied to the
+ * WebSocket state, which no longer exists.
  */
 export function RealtimeRefresh() {
   const router = useRouter();
-  const [status, setStatus] = useState<Status>("connecting");
-  const lastRefresh = useRef<number>(0);
 
   useEffect(() => {
-    const sb = getBrowserClient();
-
-    const refresh = () => {
-      // Throttle: at most one refresh per 1000 ms even on bursts.
-      const now = Date.now();
-      if (now - lastRefresh.current < 1000) return;
-      lastRefresh.current = now;
+    // Poll every 2 seconds. Robust to network drops — a missed tick is
+    // automatically retried on the next interval.
+    const interval = setInterval(() => {
       router.refresh();
-    };
+    }, 2000);
 
-    const channel = sb
-      .channel("home_events")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "events" },
-        refresh
-      )
-      .subscribe((state) => {
-        if (state === "SUBSCRIBED") setStatus("connected");
-        else if (state === "CLOSED" || state === "CHANNEL_ERROR")
-          setStatus("disconnected");
-      });
-
-    return () => {
-      sb.removeChannel(channel);
-    };
+    return () => clearInterval(interval);
   }, [router]);
 
-  const dotColor =
-    status === "connected"
-      ? "bg-[color:var(--success)]"
-      : status === "connecting"
-      ? "bg-yellow-400"
-      : "bg-[color:var(--danger)]";
-  const label =
-    status === "connected"
-      ? "Canlı bağlantı"
-      : status === "connecting"
-      ? "Bağlanıyor…"
-      : "Bağlantı yok";
-
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded bg-bg-panel-2 px-2 py-0.5 text-[11px] text-text-muted">
-      <span
-        className={cn(
-          "h-1.5 w-1.5 rounded-full",
-          dotColor,
-          status === "connected" && "animate-pulse-slow"
-        )}
-      />
-      {label}
-    </span>
-  );
+  return null; // No UI — silent background poller.
 }
