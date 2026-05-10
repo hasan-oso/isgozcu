@@ -78,7 +78,8 @@
       "Read(//c/Users/Efendi.Tec/isgozcu/**)",
       "Bash(awk '{print \"size:\", $5, \"bytes \\(target 178415813\\)\"}')",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/prepare_construction_ppe_for_v4.py)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/yolo_to_coco_v4.py)"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/yolo_to_coco_v4.py)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c 'import ast; ast.parse\\(open\\('\\\\''__TRACKED_VAR__'\\\\''\\).read\\(\\)\\); print\\('\\\\'' OK __TRACKED_VAR__'\\\\''\\)')"
     ]
   }
 }

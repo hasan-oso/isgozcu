@@ -22,22 +22,35 @@ from PIL import Image
 from transformers import AutoImageProcessor, AutoModelForObjectDetection
 
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SUPPORTED_VERSIONS: tuple[str, ...] = ("v1", "v2", "v3", "v4")
+
+
+def _path_for_version(version: str) -> Path:
+    """Map 'v1'..'v4' to the on-disk checkpoint directory."""
+    return _PROJECT_ROOT / "backend" / "models" / f"rtdetr_isgozcu_ppe_{version}"
+
+
 class RTDetrDetector:
     """RT-DETR based PPE detector with built-in ByteTrack tracking via supervision."""
 
     def __init__(
         self,
-        # Phase 2A.3.D: default flipped v2 → v3. v3 is v2 continue-trained on
-        # 200 self-captured laptop-webcam images covering all 4 PPE
-        # configurations (full / no-hardhat / no-vest / none). Fixes the
-        # Safety-Vest flicker we saw on webcam input with v2 (52:48 vest:no-vest
-        # ratio became a coin flip in close-up frames; v3's training dataset
-        # explicitly samples that distribution). Validation loss 9.68 → 9.35.
-        # v1 and v2 remain on disk; pass an explicit model_path to roll back.
-        # Phase 2A.2 history (v1 → v2): oversampled Mask + NO-Hardhat ×3,
-        # stronger augmentation (motion blur, shadows, sun flare).
-        # See docs/migration_yolo_to_rtdetr.md.
-        model_path: str | Path = "backend/models/rtdetr_isgozcu_ppe_v3",
+        # Phase 2A.5.B: opting `model_path` into Optional and adding the
+        # convenience `model_version` arg. If both are supplied, model_path
+        # wins (legacy callers stay safe). If neither, we resolve the default
+        # version below.
+        #
+        # Default version stays "v3" today — v4 is opt-in via
+        # `RTDetrDetector(model_version="v4")` until we A/B-validate it on
+        # webcam. v4 uses a brand-new 6-class schema (Person, helmet, vest,
+        # gloves, no_helmet, no_gloves) trained from scratch on the
+        # Ultralytics Construction-PPE dataset; v1/v2/v3 share the original
+        # 10-class schema (Hardhat, Mask, NO-*, Person, Safety Cone, etc.).
+        #
+        # See docs/migration_yolo_to_rtdetr.md for the full lineage.
+        model_path: str | Path | None = None,
+        model_version: str = "v3",
         device: str = "cuda",
         conf_threshold: float = 0.25,
         use_fp16: bool = True,
@@ -47,7 +60,18 @@ class RTDetrDetector:
         # short occlusions. See docs/violation_engine.md.
         track_buffer: int = 300,
     ) -> None:
+        # Resolve model path: explicit path > version shortcut > default ("v3").
+        if model_path is None:
+            if model_version not in SUPPORTED_VERSIONS:
+                raise ValueError(
+                    f"Unknown model_version '{model_version}'; "
+                    f"expected one of {SUPPORTED_VERSIONS}."
+                )
+            model_path = _path_for_version(model_version)
         self.model_path = Path(model_path)
+        # Best-effort version label for callers — used by classes_v4 routing,
+        # not load semantics (load is driven by self.model.config).
+        self.model_version = model_version
         if not self.model_path.exists():
             raise FileNotFoundError(f"RT-DETR model dizini yok / not found: {self.model_path}")
         if device == "cuda" and not torch.cuda.is_available():
