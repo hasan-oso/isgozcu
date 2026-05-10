@@ -63,7 +63,12 @@
       "Bash(curl -s http://localhost:3000/ihlaller -o /tmp/ihlaller.html)",
       "Bash(curl -s http://localhost:3000/isciler -o /tmp/isciler.html)",
       "Bash(curl -s http://localhost:3000/raporlar -o /tmp/raporlar.html)",
-      "Bash(curl -s \"http://localhost:3000/\" -o /tmp/home.html)"
+      "Bash(curl -s \"http://localhost:3000/\" -o /tmp/home.html)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('C:/Users/Efendi.Tec/isgozcu/backend/inference/live_simulator.py'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --conf 0.25 --headless --max-frames 30 --disable-violations)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('C:/Users/Efendi.Tec/isgozcu/tests/annotate_training_images.py'\\).read\\(\\)\\); print\\('annotate OK'\\)\")",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('C:/Users/Efendi.Tec/isgozcu/tests/export_to_coco.py'\\).read\\(\\)\\); print\\('export OK'\\)\")",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c 'import ast; ast.parse\\(open\\('\\\\''C:/Users/Efendi.Tec/isgozcu/__TRACKED_VAR__'\\\\''\\).read\\(\\)\\); print\\('\\\\'' __TRACKED_VAR__ OK'\\\\''\\)')"
     ]
   }
 }

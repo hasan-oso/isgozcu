@@ -49,9 +49,11 @@ def main():
     print("İşGözcü - Webcam PPE Detection Test")
     print("=" * 60)
 
-    print("\nLoading RT-DETR v2 model...")
+    # Pinned to v3 (Phase 2A.3.D) — webcam fine-tune. This test always
+    # exercises the latest model rather than relying on RTDetrDetector's default.
+    print("\nLoading RT-DETR v3 model...")
     detector = RTDetrDetector(
-        model_path=str(PROJECT_ROOT / "backend" / "models" / "rtdetr_isgozcu_ppe_v2"),
+        model_path=str(PROJECT_ROOT / "backend" / "models" / "rtdetr_isgozcu_ppe_v3"),
         device="cuda",
         conf_threshold=0.25,
         use_fp16=True,

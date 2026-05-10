@@ -27,13 +27,17 @@ class RTDetrDetector:
 
     def __init__(
         self,
-        # Phase 2A.2: default flipped v1 → v2. v2 was trained via continued
-        # training from v1 with oversampling of weak classes (Mask, NO-Hardhat
-        # ×3) and stronger augmentation (motion blur, shadows, sun flare).
-        # Validation loss 9.91 → 9.68. Major recall gains on Mask, NO-Hardhat,
-        # and `vehicle`. Set model_path explicitly to the v1 directory if you
-        # want to A/B-test or roll back. See docs/migration_yolo_to_rtdetr.md.
-        model_path: str | Path = "backend/models/rtdetr_isgozcu_ppe_v2",
+        # Phase 2A.3.D: default flipped v2 → v3. v3 is v2 continue-trained on
+        # 200 self-captured laptop-webcam images covering all 4 PPE
+        # configurations (full / no-hardhat / no-vest / none). Fixes the
+        # Safety-Vest flicker we saw on webcam input with v2 (52:48 vest:no-vest
+        # ratio became a coin flip in close-up frames; v3's training dataset
+        # explicitly samples that distribution). Validation loss 9.68 → 9.35.
+        # v1 and v2 remain on disk; pass an explicit model_path to roll back.
+        # Phase 2A.2 history (v1 → v2): oversampled Mask + NO-Hardhat ×3,
+        # stronger augmentation (motion blur, shadows, sun flare).
+        # See docs/migration_yolo_to_rtdetr.md.
+        model_path: str | Path = "backend/models/rtdetr_isgozcu_ppe_v3",
         device: str = "cuda",
         conf_threshold: float = 0.25,
         use_fp16: bool = True,

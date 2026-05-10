@@ -796,10 +796,11 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
                    help="Which model backend to use (default: rtdetr).")
     p.add_argument("--model-path", default=None,
                    help="Override model path. Defaults: backend/models/ppe_yolov8n.pt for yolo, "
-                        "backend/models/rtdetr_isgozcu_ppe_v2 for rtdetr (--model-version v1 to roll back).")
-    p.add_argument("--model-version", choices=["v1", "v2"], default="v2",
+                        "backend/models/rtdetr_isgozcu_ppe_v3 for rtdetr "
+                        "(--model-version v1|v2 to roll back).")
+    p.add_argument("--model-version", choices=["v1", "v2", "v3"], default="v3",
                    help="Which RT-DETR checkpoint to load when --detector rtdetr "
-                        "and no --model-path is given (default: v2).")
+                        "and no --model-path is given (default: v3 — webcam fine-tuned).")
     p.add_argument("--no-loop", action="store_true")
     p.add_argument("--headless", action="store_true", help="No GUI; for automated testing.")
     p.add_argument("--max-frames", type=int, default=None)
