@@ -79,7 +79,15 @@
       "Bash(awk '{print \"size:\", $5, \"bytes \\(target 178415813\\)\"}')",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/prepare_construction_ppe_for_v4.py)",
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/yolo_to_coco_v4.py)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c 'import ast; ast.parse\\(open\\('\\\\''__TRACKED_VAR__'\\\\''\\).read\\(\\)\\); print\\('\\\\'' OK __TRACKED_VAR__'\\\\''\\)')"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c 'import ast; ast.parse\\(open\\('\\\\''__TRACKED_VAR__'\\\\''\\).read\\(\\)\\); print\\('\\\\'' OK __TRACKED_VAR__'\\\\''\\)')",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install albumentations datasets accelerate)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import albumentations, datasets, accelerate\")",
+      "Bash(tasklist)",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install --progress-bar on -v albumentations datasets accelerate)",
+      "Bash(taskkill //F //IM pip.exe)",
+      "Bash(tee C:/Users/Efendi.Tec/isgozcu/logs/pip_install.log)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('C:/Users/Efendi.Tec/isgozcu/tests/train_v5_local.py'\\).read\\(\\)\\); print\\('OK'\\)\")"
     ]
   }
 }

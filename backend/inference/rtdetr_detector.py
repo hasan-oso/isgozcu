@@ -23,7 +23,7 @@ from transformers import AutoImageProcessor, AutoModelForObjectDetection
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SUPPORTED_VERSIONS: tuple[str, ...] = ("v1", "v2", "v3", "v4")
+SUPPORTED_VERSIONS: tuple[str, ...] = ("v1", "v2", "v3", "v4", "v5")
 
 
 def _path_for_version(version: str) -> Path:
@@ -36,18 +36,19 @@ class RTDetrDetector:
 
     def __init__(
         self,
-        # Phase 2A.5.B: opting `model_path` into Optional and adding the
-        # convenience `model_version` arg. If both are supplied, model_path
-        # wins (legacy callers stay safe). If neither, we resolve the default
-        # version below.
+        # Phase 2A.6: v5 added as opt-in (NOT default). v5 is v3 fine-tuned
+        # on the Construction-PPE dataset remapped to v3's 10-class schema,
+        # but its training trajectory showed signs of overfitting (best val
+        # loss at epoch 0.99, then steadily worse) AND a Transformers/RT-DETR
+        # checkpoint serialization quirk (class_embed/bbox_embed missing in
+        # `load_best_model_at_end`) means the saved weights are a hybrid of
+        # best-backbone + last-heads rather than a clean snapshot. So v5
+        # stays opt-in via `model_version="v5"` until webcam validation
+        # confirms it's actually a win over v3.
         #
-        # Default version stays "v3" today — v4 is opt-in via
-        # `RTDetrDetector(model_version="v4")` until we A/B-validate it on
-        # webcam. v4 uses a brand-new 6-class schema (Person, helmet, vest,
-        # gloves, no_helmet, no_gloves) trained from scratch on the
-        # Ultralytics Construction-PPE dataset; v1/v2/v3 share the original
-        # 10-class schema (Hardhat, Mask, NO-*, Person, Safety Cone, etc.).
-        #
+        # Phase 2A.5.B: v4 added as opt-in (6-class Construction-PPE
+        # schema); v3 remains the production default with the original
+        # 10-class schema (Hardhat, Mask, NO-*, Person, Safety Cone, …).
         # See docs/migration_yolo_to_rtdetr.md for the full lineage.
         model_path: str | Path | None = None,
         model_version: str = "v3",

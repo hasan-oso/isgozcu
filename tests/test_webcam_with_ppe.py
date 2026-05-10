@@ -49,11 +49,16 @@ def main():
     print("İşGözcü - Webcam PPE Detection Test")
     print("=" * 60)
 
-    # Pinned to v3 (Phase 2A.3.D) — webcam fine-tune. This test always
-    # exercises the latest model rather than relying on RTDetrDetector's default.
-    print("\nLoading RT-DETR v3 model...")
+    # Phase 2A.6: pinned to v5 to validate the Construction-PPE fine-tune.
+    # NOTE: v5's training showed overfitting signs (best val loss at epoch
+    # 0.99, regressed afterwards). This test is the practical gate for
+    # whether v5 should replace v3 as the production default. If v5 looks
+    # better than the v3 webcam baseline (Hardhat 1484, Vest 1862:1698
+    # flicker, shadow false positives) → we flip the default. If worse,
+    # we change `rtdetr_isgozcu_ppe_v5` below back to `_v3` and roll back.
+    print("\nLoading RT-DETR v5 model...")
     detector = RTDetrDetector(
-        model_path=str(PROJECT_ROOT / "backend" / "models" / "rtdetr_isgozcu_ppe_v3"),
+        model_path=str(PROJECT_ROOT / "backend" / "models" / "rtdetr_isgozcu_ppe_v5"),
         device="cuda",
         conf_threshold=0.25,
         use_fp16=True,

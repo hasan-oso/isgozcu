@@ -19,6 +19,8 @@ data/roboflow_reannotation/
 data/construction_ppe/
 data/construction_ppe_filtered/
 data/construction_ppe_v4.zip
+data/construction_ppe_v5/
+logs/
 backend/models/*.pt
 backend/models/*/
 backend/models/*.zip
