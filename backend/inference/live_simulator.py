@@ -45,6 +45,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.inference.detector_adapter import DetectorAdapter  # noqa: E402
+from backend.inference.post_processor import DetectionPostProcessor  # noqa: E402
 from backend.inference.snapshot_saver import SnapshotSaver  # noqa: E402
 from backend.inference.text_render import put_text_outlined as _put_text_outlined  # noqa: E402
 from backend.inference.violation_engine import (  # noqa: E402
@@ -137,11 +138,12 @@ class LiveStreamSimulator:
         max_frames: Optional[int] = None,
         snapshot_every: Optional[int] = None,
         enable_violations: bool = True,
-        min_violation_duration: float = 5.0,
-        violation_threshold: float = 0.7,
+        min_violation_duration: float = 8.0,
+        violation_threshold: float = 0.85,
         recovery_threshold: float = 0.3,
         enable_supabase: bool = False,
         site_name: str = "Demo Şantiye",
+        enable_post_process: bool = True,
     ) -> None:
         self.video_path = video_path
         self.is_webcam = isinstance(video_path, int)
@@ -187,6 +189,16 @@ class LiveStreamSimulator:
         )
         self.class_names = {i: n for i, n in enumerate(self.detector.get_class_names())}
         self.imgsz = 640
+
+        # Post-processor scrubs the model's raw detections (class-specific
+        # confidence floors, Person-box geometry, Hardhat/NO-Hardhat dedup,
+        # vest temporal smoothing). Defaults ON; toggleable for A/B testing.
+        self.enable_post_process = enable_post_process
+        self.post_processor = DetectionPostProcessor(
+            class_names=self.detector.get_class_names(),
+            frame_width=DISPLAY_W,
+            frame_height=DISPLAY_H,
+        )
 
         # Violation engine
         self.session_id = uuid.uuid4().hex[:12]
@@ -315,6 +327,8 @@ class LiveStreamSimulator:
             # we re-resolve via DB on the next sighting.
             if self.worker_registry is not None:
                 self.worker_registry.reset_session_cache()
+            # Drop vest-smoothing histories too; old track_ids no longer apply.
+            self.post_processor.reset_all()
             ok, frame = self.cap.read()
         return ok, frame
 
@@ -546,6 +560,10 @@ class LiveStreamSimulator:
         _draw_translucent_box(canvas, 0, h - 40, w, 40, alpha=0.6)
         controls = "[Q] Çıkış   [Space] Duraklat   [S] Anlık Görüntü   [R] Sıfırla   [+/-] Hız"
         _put_text_outlined(canvas, controls, (12, h - 14), scale=0.55)
+        # Post-process state pill on the right side of the controls strip.
+        pp_label = "PP: ON" if self.enable_post_process else "PP: OFF"
+        pp_color = (60, 220, 60) if self.enable_post_process else (130, 130, 130)
+        _put_text_outlined(canvas, pp_label, (w - 86, h - 14), scale=0.55, fg=pp_color, thickness=2)
 
         # Loop overlay (centered, 1.2s)
         if time.time() < self.loop_overlay_until:
@@ -609,6 +627,10 @@ class LiveStreamSimulator:
                         break
                     display_frame = self._resize_for_display(frame)
                     detections = self._detect(display_frame)
+                    # Phase 2A.7: scrub raw detections before they hit the
+                    # violation engine / stats / display.
+                    if self.enable_post_process:
+                        detections = self.post_processor.process(detections)
                     active_v_count, persons = self._update_stats(detections)
                     # Violation processing (uses video time, not wall clock)
                     if self.enable_violations:
@@ -809,16 +831,23 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
                    help="Enable the violation engine (default).")
     p.add_argument("--disable-violations", dest="enable_violations", action="store_false",
                    help="Turn the violation engine off.")
-    p.add_argument("--min-duration", type=float, default=5.0,
-                   help="Min violation duration in video seconds before firing (default 5.0).")
-    p.add_argument("--violation-threshold", type=float, default=0.7,
-                   help="Non-compliance ratio that triggers a violation (default 0.7).")
+    p.add_argument("--min-duration", type=float, default=8.0,
+                   help="Min violation duration in video seconds before firing (default 8.0; "
+                        "Phase 2A.7 bumped 5.0 -> 8.0 to match the stricter PP-filtered pipeline).")
+    p.add_argument("--violation-threshold", type=float, default=0.85,
+                   help="Non-compliance ratio that triggers a violation (default 0.85; "
+                        "Phase 2A.7 bumped 0.7 -> 0.85).")
     p.add_argument("--recovery-threshold", type=float, default=0.3,
                    help="Ratio below which an active violation ends. Must be < violation-threshold (default 0.3).")
     p.add_argument("--supabase", action="store_true",
                    help="Upload violation events + snapshots to Supabase (requires .env). Off by default.")
     p.add_argument("--site-name", default="Demo Şantiye",
                    help="Site name used when --supabase is on (default 'Demo Şantiye').")
+    p.add_argument("--post-process", dest="post_process", action="store_true", default=True,
+                   help="Apply the v3 post-processing layer (confidence floors, person-box "
+                        "geometry, hardhat dedup, vest temporal smoothing). On by default.")
+    p.add_argument("--no-post-process", dest="post_process", action="store_false",
+                   help="Disable the post-processing layer (raw model output). Useful for A/B.")
     return p.parse_args(argv)
 
 
@@ -870,6 +899,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         recovery_threshold=args.recovery_threshold,
         enable_supabase=args.supabase,
         site_name=args.site_name,
+        enable_post_process=args.post_process,
     )
     return sim.run()
 

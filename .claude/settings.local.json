@@ -87,7 +87,10 @@
       "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -m pip install --progress-bar on -v albumentations datasets accelerate)",
       "Bash(taskkill //F //IM pip.exe)",
       "Bash(tee C:/Users/Efendi.Tec/isgozcu/logs/pip_install.log)",
-      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('C:/Users/Efendi.Tec/isgozcu/tests/train_v5_local.py'\\).read\\(\\)\\); print\\('OK'\\)\")"
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('C:/Users/Efendi.Tec/isgozcu/tests/train_v5_local.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_post_processor.py)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe tests/test_iou_matcher.py)",
+      "Bash(C:/Users/Efendi.Tec/isgozcu/venv/Scripts/python.exe backend/inference/live_simulator.py --detector rtdetr --conf 0.25 --headless --max-frames 100)"
     ]
   }
 }

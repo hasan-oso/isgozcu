@@ -320,8 +320,13 @@ class ViolationDetector:
 
     def __init__(
         self,
-        min_violation_duration: float = 5.0,
-        violation_threshold: float = 0.7,
+        # Phase 2A.7: defaults tightened. min_duration 5.0 → 8.0 and
+        # violation_threshold 0.7 → 0.85 are the new defaults paired with
+        # the PostProcessor scrubbing layer in front. The hysteresis split
+        # between firing (violation_threshold) and resolving (recovery_threshold)
+        # was already implemented in Phase 2B.
+        min_violation_duration: float = 8.0,
+        violation_threshold: float = 0.85,
         recovery_threshold: float = 0.3,
         fps: float = 8.0,
         camera_id: str = "CAM_01",

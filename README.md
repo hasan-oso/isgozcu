@@ -128,6 +128,18 @@ Routes today (Phase 3.2):
 
 **Realtime**: the home page subscribes to `events` table changes via Supabase Realtime websocket. When a new violation INSERTs (or one resolves), the page calls `router.refresh()` and the metric cards + recent-violations list update without a full reload. A small "Canlı bağlantı" pill in the page header shows the websocket status (green = connected, yellow = connecting, red = disconnected).
 
+### Post-processing pipeline (Phase 2A.7)
+
+Between RT-DETR's raw output and the violation engine sits a small
+`DetectionPostProcessor` ([backend/inference/post_processor.py](backend/inference/post_processor.py)) that scrubs four known v3 failure modes — without retraining the model:
+
+1. **Class-specific confidence floors** — `Person` 0.75, `Safety Vest` 0.65, `NO-Safety Vest` 0.70, etc. Stricter than the model's global 0.25 threshold.
+2. **`Person` geometry validation** — rejects boxes that are too small, too huge, or weirdly shaped (kills shadow / chair false positives).
+3. **`Hardhat` ↔ `NO-Hardhat` dedup** — when both fire on the same head with IoU ≥ 0.50, keep the higher-confidence one only.
+4. **Vest temporal smoothing** — per-tracker rolling 30-frame majority vote suppresses single-frame flicker.
+
+Paired with stricter violation-engine defaults (`min_duration 8.0`, `violation_threshold 0.85`, `recovery_threshold 0.30` — hysteresis). The HUD shows a small `PP: ON / OFF` pill so the active mode is always visible. Toggle with `--no-post-process` for diagnostic A/B. See [docs/post_processing.md](docs/post_processing.md) for full details.
+
 Theme: a dark blue palette (`bg-bg-page`, `bg-bg-panel`, accent `#185fa5`, danger `#d83b3b`) defined in [globals.css](frontend/src/app/globals.css). Inter font via `next/font/google`. All UI strings are in Turkish; code, file names and component identifiers are English.
 
 > **Note**: anonymous reads on the Supabase tables require RLS policies allowing `SELECT` for the `anon` role. See [docs/supabase_integration.md](docs/supabase_integration.md) for the SQL.
