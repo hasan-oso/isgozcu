@@ -11,6 +11,9 @@ data/snapshots/**/*.jpg
 data/snapshots/**/*.png
 data/reports/
 data/training_images/
+data/training_images/annotations/
+data/training_images/coco/
+data/training_images/progress.json
 backend/models/*.pt
 backend/models/*/
 backend/models/*.zip
