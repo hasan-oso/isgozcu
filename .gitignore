@@ -16,6 +16,9 @@ data/training_images/coco/
 data/training_images/progress.json
 data/roboflow_dataset/
 data/roboflow_reannotation/
+data/construction_ppe/
+data/construction_ppe_filtered/
+data/construction_ppe_v4.zip
 backend/models/*.pt
 backend/models/*/
 backend/models/*.zip
