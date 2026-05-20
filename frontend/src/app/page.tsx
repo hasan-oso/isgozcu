@@ -1,10 +1,10 @@
-import { AlertTriangle, Camera, Users, Video, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Camera, Users, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { MetricCard } from "@/components/ui/metric-card";
 import { ViolationRow } from "@/components/violations/violation-row";
-import { LiveBadge } from "@/components/ui/live-badge";
 import { RealtimeRefresh } from "@/components/home/realtime-refresh";
+import { LiveStream } from "@/components/home/live-stream";
 import { getServerClient } from "@/lib/supabase/server";
 import type {
   ViolationEventWithWorker,
@@ -150,18 +150,12 @@ function LiveStreamCard({
         <span className="text-xs text-text-muted">CCTV_01</span>
       </div>
       <div className="relative aspect-video w-full bg-bg-page">
-        {/* Placeholder video area — real WebRTC / HLS feed comes in Phase 3.3+. */}
-        <div className="flex h-full w-full items-center justify-center text-text-muted">
-          <Video size={56} className="opacity-30" />
-        </div>
-        <span className="absolute right-3 top-3">
-          <LiveBadge />
-        </span>
-        <span className="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-[11px] text-text-primary">
-          CCTV_01
-        </span>
+        {/* MJPEG live view — fed by `backend/streaming/mjpeg_server.py`
+            when the simulator is launched with --stream. The component
+            handles its own offline / loading / error states. */}
+        <LiveStream cameraId="CCTV_01" />
         {latestActive ? (
-          <div className="absolute left-3 right-3 top-12 flex items-start gap-2 rounded border border-[color:var(--danger)] bg-[rgba(216,59,59,0.18)] px-3 py-2 text-xs text-text-primary backdrop-blur-sm">
+          <div className="pointer-events-none absolute left-3 right-3 top-12 flex items-start gap-2 rounded border border-[color:var(--danger)] bg-[rgba(216,59,59,0.18)] px-3 py-2 text-xs text-text-primary backdrop-blur-sm">
             <AlertTriangle
               size={16}
               className="mt-0.5 flex-shrink-0 text-[color:var(--danger)]"
@@ -179,7 +173,7 @@ function LiveStreamCard({
             </div>
           </div>
         ) : null}
-        <span className="absolute bottom-3 right-3 rounded bg-black/60 px-2 py-1 text-[11px] text-text-muted">
+        <span className="pointer-events-none absolute bottom-3 right-3 rounded bg-black/60 px-2 py-1 text-[11px] text-text-muted">
           {format(new Date(), "dd.MM.yyyy HH:mm:ss")}
         </span>
       </div>

@@ -1,159 +1,421 @@
-# İşGözcü - Şantiye Güvenlik Zekası
+<div align="center">
 
-AI-powered construction site safety monitoring system for the Turkish market.
+# İşGözcü
 
-Türkiye pazarı için yapay zeka destekli şantiye iş güvenliği izleme sistemi.
+### Şantiye Güvenlik Zekâsı · AI-Powered Construction Site Safety · ذكاء سلامة مواقع البناء
 
-## Features / Özellikler
+![Status](https://img.shields.io/badge/status-in%20development-orange)
+![Phase](https://img.shields.io/badge/phase-3.5-blue)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.5-EE4C2C?logo=pytorch&logoColor=white)
+![License](https://img.shields.io/badge/license-Proprietary-red)
+![KVKK](https://img.shields.io/badge/KVKK-compliant-green)
+![Supervisor](https://img.shields.io/badge/supervisor-Dr.%20Murat%20%C5%9Eim%C5%9Fek-blueviolet)
 
-- Real-time PPE detection (helmet, vest, gloves, safety shoes)
-- Restricted zone monitoring
-- Anonymous worker tracking (KVKK compliant)
-- Hourly, daily, weekly, monthly compliance reports
-- PDF export for legal records
+**🇬🇧 [English](#-english)** · **🇹🇷 [Türkçe](#-türkçe)** · **🇸🇦 [العربية](#-العربية)**
 
-- Gerçek zamanlı KKD tespiti (baret, yelek, eldiven, iş ayakkabısı)
-- Yasaklı bölge izleme
-- Anonim işçi takibi (KVKK uyumlu)
-- Saatlik, günlük, haftalık, aylık uyum raporları
-- Yasal kayıtlar için PDF dışa aktarımı
+---
 
-## Setup / Kurulum
+> ⚠️ **Pre-release · Geliştirme aşamasında · قيد التطوير**
+> This project is under active development. Features, APIs and the data model may change without notice. Not yet production-ready.
+
+</div>
+
+---
+
+## 🇬🇧 English
+
+**İşGözcü** is a real-time computer-vision system that monitors construction sites for Personal Protective Equipment (PPE) compliance. It detects whether workers are wearing helmets, vests, masks and other safety equipment, and produces auditable violation reports — all while staying compliant with Turkey's KVKK personal-data law.
+
+### 🎓 Academic Supervision
+
+This project was developed under the academic supervision of  
+**Dr. Murat Şimşek**  
+OSTİM Technical University, Department of Artificial Intelligence Engineering, Ankara
+
+The methodological framework and computer vision approach were guided by Dr. Şimşek's expertise.
+
+---
+
+
+### ✨ Key features
+
+- **Real-time PPE detection** — helmet, vest, mask, gloves, safety shoes (10 classes)
+- **Restricted-zone monitoring** with anonymous worker tracking (ByteTrack)
+- **KVKK-compliant** — no facial recognition, no biometric storage
+- **Post-processing pipeline** — class-specific confidence floors, geometric validation, temporal smoothing
+- **Violation engine** with debouncing + hysteresis to suppress single-frame flicker
+- **Hourly, daily, weekly, monthly compliance reports** with PDF export
+- **Next.js dashboard** with live MJPEG stream + real-time violation feed
+- **Optional Supabase persistence** for events, snapshots and dashboards
+
+### 🛠 Tech stack
+
+| Layer        | Technology |
+|--------------|------------|
+| Detection    | RT-DETR (Apache 2.0) via HuggingFace `transformers`, fine-tuned on Construction Site Safety (CC BY 4.0) |
+| Tracking     | ByteTrack via `supervision` (MIT) |
+| Backend      | FastAPI + Uvicorn |
+| Database     | Supabase (PostgreSQL) |
+| Frontend     | Next.js 16 (dark-blue dashboard) |
+| GPU          | NVIDIA CUDA 12.1 (PyTorch 2.5) |
+
+### 🚀 Quick start
 
 ```powershell
+# 1) Create Python environment
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-```
 
-If activation is blocked by execution policy, run once:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-Copy `.env.example` to `.env` and fill in your Supabase credentials:
-
-```powershell
+# 2) Configure secrets
 Copy-Item .env.example .env
+# then edit .env and fill in your Supabase credentials
+
+# 3) Run the live simulator (webcam)
+python backend\inference\live_simulator.py --input 0 --detector rtdetr --supabase --stream
+
+# 4) Run the dashboard (separate terminal)
+cd frontend
+npm install
+npm run dev   # http://localhost:3000
 ```
 
-## Project Structure / Proje Yapısı
+> If PowerShell blocks activation, run once:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+### 📁 Project structure
 
 ```
 isgozcu/
 ├── backend/
-│   ├── inference/   # YOLO + ByteTrack detection logic
+│   ├── inference/   # RT-DETR + ByteTrack + violation engine + post-processor
+│   ├── streaming/   # MJPEG HTTP server (FastAPI)
+│   ├── storage/     # Supabase client
 │   ├── api/         # FastAPI endpoints
-│   ├── models/      # Downloaded YOLO model weights (.pt)
-│   └── utils/       # Shared helpers
-├── frontend/        # Next.js dashboard (added later)
+│   ├── models/      # Downloaded model weights (.gitignored)
+│   └── utils/
+├── frontend/        # Next.js 16 operator dashboard
+├── docs/            # Architecture, benchmarks, design notes
 ├── notebooks/       # Jupyter experiments
-├── videos/
-│   ├── samples/     # Test input videos
-│   └── outputs/     # Processed videos with detections drawn
-├── data/
-│   └── snapshots/   # Violation evidence images
-├── docs/            # Architecture and design docs
-├── tests/           # Unit and integration tests
+├── videos/          # Test footage (.gitignored)
+├── data/snapshots/  # Violation evidence (.gitignored)
+├── data/reports/    # Session JSON reports (.gitignored)
+├── tests/           # Unit + integration + capture tools
 ├── .env.example
-├── .gitignore
 ├── README.md
 └── requirements.txt
 ```
 
-## Technology / Teknoloji
+### 📚 Documentation
 
-- **Detection**: RT-DETR (Apache 2.0) via HuggingFace `transformers`, fine-tuned on the Construction Site Safety dataset (CC BY 4.0). Active checkpoint is **v2** (`backend/models/rtdetr_isgozcu_ppe_v2`) — continued training from v1 with oversampling for `Mask` / `NO-Hardhat` and stronger augmentation; v1 stays on disk for rollback (`--model-version v1`).
-- **Tracking**: ByteTrack via `supervision` (MIT)
-- **Legacy**: YOLOv8 (AGPL-3.0) is kept around for benchmarking only — selectable with `--detector yolo` in the live simulator. **Not used in production paths.**
-- **Backend**: FastAPI + Uvicorn
-- **Database**: Supabase (PostgreSQL)
-- **Frontend**: Next.js (separate folder)
-- **GPU**: NVIDIA CUDA 12.1 (PyTorch)
+| Document | Description |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | High-level system architecture |
+| [docs/migration_yolo_to_rtdetr.md](docs/migration_yolo_to_rtdetr.md) | YOLOv8 → RT-DETR migration & benchmarks |
+| [docs/violation_engine.md](docs/violation_engine.md) | Violation state machine, IoU matching, tuning |
+| [docs/post_processing.md](docs/post_processing.md) | Confidence floors, geometric validation, smoothing |
+| [docs/supabase_integration.md](docs/supabase_integration.md) | Persistence layer & RLS policies |
+| [docs/detection_benchmark.md](docs/detection_benchmark.md) | Detector throughput on test footage |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Internal contribution workflow |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting |
 
-### License compliance
+### ⚖️ License compliance for commercial deployment
 
-The production inference stack is **clean for commercial deployment**:
+The production inference stack is clean for commercial use:
 
-| Component                              | License     |
-|----------------------------------------|-------------|
-| RT-DETR architecture (Baidu)            | Apache 2.0  |
-| Trained model weights                   | Apache 2.0  |
-| `transformers` (HuggingFace)            | Apache 2.0  |
-| `supervision` (Roboflow)                | MIT         |
-| Construction Site Safety dataset        | CC BY 4.0   |
-| PyTorch                                 | BSD-style   |
+| Component | License |
+|---|---|
+| RT-DETR architecture (Baidu) | Apache 2.0 |
+| Trained model weights | Apache 2.0 |
+| `transformers` (HuggingFace) | Apache 2.0 |
+| `supervision` (Roboflow) | MIT |
+| Construction Site Safety dataset | CC BY 4.0 |
+| PyTorch | BSD-style |
 
-YOLOv8 (AGPL-3.0) is no longer in any production inference path. See [docs/migration_yolo_to_rtdetr.md](docs/migration_yolo_to_rtdetr.md) for the full rationale and the YOLO-vs-RT-DETR benchmark.
+YOLOv8 (AGPL-3.0) is kept for benchmarking only and is **not** in any production inference path. See [docs/migration_yolo_to_rtdetr.md](docs/migration_yolo_to_rtdetr.md).
 
-### Supabase Setup
+### 🔒 KVKK / privacy
 
-Optional persistence layer for violation events + evidence snapshots.
+- Workers are tracked anonymously by ByteTrack ID — never by biometrics
+- No facial recognition is performed
+- Snapshots are stored only as evidence for active violations
+- Every report export is audit-logged
 
-1. Create a Supabase project + a public storage bucket named `snapshots`.
-2. Apply the schema (4 tables: `sites`, `cameras`, `workers`, `events`). See [docs/supabase_integration.md](docs/supabase_integration.md) for the schema reference.
-3. Copy `.env.example` to `.env` and fill in `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
-4. Run the smoke test: `python tests\test_supabase_upload.py`.
-5. Enable on the live simulator with `--supabase`:
-   ```powershell
-   python backend\inference\live_simulator.py --supabase
-   ```
+### 📄 License
 
-Supabase failures never crash the simulator — it falls back to local-only mode and prints `[uyarı] Supabase ...` on the console. The HUD shows a small green / yellow / red / gray dot next to LIVE indicating last sync state, plus `Yüklenen: N` in the bottom-right stats panel.
+**Proprietary — All rights reserved.** See [LICENSE](LICENSE).
 
-### Frontend Setup (Phase 3.1)
+---
 
-Dark-blue Next.js 16 dashboard for the safety operator. Lives in [frontend/](frontend/) with its own `package.json`, no shared deps with the Python backend.
+## 🇹🇷 Türkçe
+
+**İşGözcü**, şantiyelerde Kişisel Koruyucu Donanım (KKD) kullanımını gerçek zamanlı izleyen bir bilgisayarlı görü sistemidir. İşçilerin baret, yelek, maske ve diğer güvenlik ekipmanlarını giyip giymediğini tespit eder ve denetlenebilir ihlal raporları üretir — bunu da KVKK ile tam uyumlu yaparak.
+
+### 🎓 Akademik Danışman
+
+Bu proje, **Dr. Murat Şimşek** akademik danışmanlığında geliştirilmiştir.  
+OSTİM Teknik Üniversitesi, Yapay Zeka Mühendisliği Bölümü, Ankara
+
+Metodolojik çerçeve ve bilgisayarlı görü yaklaşımı, Dr. Şimşek'in uzmanlığı doğrultusunda şekillendirilmiştir.
+
+---
+
+### ✨ Öne çıkan özellikler
+
+- **Gerçek zamanlı KKD tespiti** — baret, yelek, maske, eldiven, iş ayakkabısı (10 sınıf)
+- **Yasaklı bölge izleme** ve anonim işçi takibi (ByteTrack)
+- **KVKK uyumlu** — yüz tanıma yok, biyometrik veri depolanmaz
+- **Son işleme hattı** — sınıfa özgü güven eşikleri, geometrik doğrulama, zamansal yumuşatma
+- **İhlal motoru** — debouncing + histerezis ile tek-kare gürültüsünü bastırır
+- **Saatlik / günlük / haftalık / aylık uyum raporları** + PDF dışa aktarımı
+- **Next.js gösterge paneli** — canlı MJPEG yayını + gerçek zamanlı ihlal akışı
+- **İsteğe bağlı Supabase kalıcılığı** — olaylar, kanıtlar ve panolar için
+
+### 🛠 Teknoloji yığını
+
+| Katman | Teknoloji |
+|---|---|
+| Tespit | RT-DETR (Apache 2.0) + HuggingFace `transformers`, Construction Site Safety verisetinde (CC BY 4.0) ince ayarlı |
+| Takip | `supervision` üzerinden ByteTrack (MIT) |
+| Backend | FastAPI + Uvicorn |
+| Veritabanı | Supabase (PostgreSQL) |
+| Frontend | Next.js 16 (koyu mavi panel) |
+| GPU | NVIDIA CUDA 12.1 (PyTorch 2.5) |
+
+### 🚀 Hızlı başlangıç
 
 ```powershell
+# 1) Python ortamı oluştur
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# 2) Gizli bilgileri ayarla
+Copy-Item .env.example .env
+# sonra .env dosyasını açıp Supabase bilgilerini doldur
+
+# 3) Canlı simülatörü çalıştır (webcam)
+python backend\inference\live_simulator.py --input 0 --detector rtdetr --supabase --stream
+
+# 4) Paneli çalıştır (ayrı bir terminalde)
 cd frontend
-# .env.local is created automatically the first time you run the simulator;
-# you can also copy it from the parent .env (only NEXT_PUBLIC_SUPABASE_URL +
-# NEXT_PUBLIC_SUPABASE_ANON_KEY are needed).
 npm install
 npm run dev   # http://localhost:3000
-npm run build # production build (Turbopack)
 ```
 
-Routes today (Phase 3.2):
+> PowerShell betiği engellerse, bir kez şu komutu çalıştırın:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
 
-| Path | Purpose |
+### 📁 Proje yapısı
+
+```
+isgozcu/
+├── backend/
+│   ├── inference/   # RT-DETR + ByteTrack + ihlal motoru + son işleme
+│   ├── streaming/   # MJPEG HTTP sunucusu (FastAPI)
+│   ├── storage/     # Supabase istemcisi
+│   ├── api/         # FastAPI uç noktaları
+│   ├── models/      # İndirilen model ağırlıkları (.gitignore'da)
+│   └── utils/
+├── frontend/        # Next.js 16 operatör paneli
+├── docs/            # Mimari, kıyaslamalar, tasarım notları
+├── notebooks/       # Jupyter denemeleri
+├── videos/          # Test görüntüleri (.gitignore'da)
+├── data/snapshots/  # İhlal kanıtları (.gitignore'da)
+├── data/reports/    # Oturum JSON raporları (.gitignore'da)
+├── tests/           # Birim + entegrasyon + yakalama araçları
+├── .env.example
+├── README.md
+└── requirements.txt
+```
+
+### 📚 Belgeler
+
+| Belge | Açıklama |
 |---|---|
-| `/`         | Live dashboard — 4 metric cards, live-stream placeholder, recent violations, **realtime auto-refresh** when new events fire |
-| `/ihlaller` | Violations table — date range / type / camera / status filters in URL params, snapshot thumbnails, "Detay" dialog with full snapshot + metadata, pagination |
-| `/raporlar` | Reports — 4 stat cards (Toplam İhlal / Ortalama Süre / Etkilenen İşçi / En Sık İhlal), daily trend line chart, type pie chart, hourly bar chart. Time range tabs (Bugün / Bu Hafta / Bu Ay / Son 30 Gün) |
-| `/isciler`  | Worker grid — search by tracker_id, per-worker card with last violation, detail dialog with full event timeline |
-| `/ayarlar`  | Settings (placeholder) |
+| [docs/architecture.md](docs/architecture.md) | Sistem mimarisi |
+| [docs/migration_yolo_to_rtdetr.md](docs/migration_yolo_to_rtdetr.md) | YOLOv8 → RT-DETR geçişi ve kıyaslamalar |
+| [docs/violation_engine.md](docs/violation_engine.md) | İhlal durum makinesi, IoU eşleştirme, ayar |
+| [docs/post_processing.md](docs/post_processing.md) | Güven eşikleri, geometrik doğrulama, yumuşatma |
+| [docs/supabase_integration.md](docs/supabase_integration.md) | Kalıcılık katmanı ve RLS politikaları |
+| [docs/detection_benchmark.md](docs/detection_benchmark.md) | Test görüntülerinde dedektör performansı |
+| [CHANGELOG.md](CHANGELOG.md) | Sürüm geçmişi |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Dahili katkı süreci |
+| [SECURITY.md](SECURITY.md) | Güvenlik açığı bildirimi |
 
-**Realtime**: the home page subscribes to `events` table changes via Supabase Realtime websocket. When a new violation INSERTs (or one resolves), the page calls `router.refresh()` and the metric cards + recent-violations list update without a full reload. A small "Canlı bağlantı" pill in the page header shows the websocket status (green = connected, yellow = connecting, red = disconnected).
+### ⚖️ Ticari dağıtım için lisans uyumu
 
-### Post-processing pipeline (Phase 2A.7)
+Üretim çıkarım yığını ticari kullanım için temizdir:
 
-Between RT-DETR's raw output and the violation engine sits a small
-`DetectionPostProcessor` ([backend/inference/post_processor.py](backend/inference/post_processor.py)) that scrubs four known v3 failure modes — without retraining the model:
+| Bileşen | Lisans |
+|---|---|
+| RT-DETR mimarisi (Baidu) | Apache 2.0 |
+| Eğitilmiş model ağırlıkları | Apache 2.0 |
+| `transformers` (HuggingFace) | Apache 2.0 |
+| `supervision` (Roboflow) | MIT |
+| Construction Site Safety veriseti | CC BY 4.0 |
+| PyTorch | BSD-style |
 
-1. **Class-specific confidence floors** — `Person` 0.75, `Safety Vest` 0.65, `NO-Safety Vest` 0.70, etc. Stricter than the model's global 0.25 threshold.
-2. **`Person` geometry validation** — rejects boxes that are too small, too huge, or weirdly shaped (kills shadow / chair false positives).
-3. **`Hardhat` ↔ `NO-Hardhat` dedup** — when both fire on the same head with IoU ≥ 0.50, keep the higher-confidence one only.
-4. **Vest temporal smoothing** — per-tracker rolling 30-frame majority vote suppresses single-frame flicker.
+YOLOv8 (AGPL-3.0) yalnızca kıyaslama amacıyla tutulmaktadır ve **hiçbir** üretim yolunda yer almaz. Ayrıntılar: [docs/migration_yolo_to_rtdetr.md](docs/migration_yolo_to_rtdetr.md).
 
-Paired with stricter violation-engine defaults (`min_duration 8.0`, `violation_threshold 0.85`, `recovery_threshold 0.30` — hysteresis). The HUD shows a small `PP: ON / OFF` pill so the active mode is always visible. Toggle with `--no-post-process` for diagnostic A/B. See [docs/post_processing.md](docs/post_processing.md) for full details.
+### 🔒 KVKK / gizlilik
 
-Theme: a dark blue palette (`bg-bg-page`, `bg-bg-panel`, accent `#185fa5`, danger `#d83b3b`) defined in [globals.css](frontend/src/app/globals.css). Inter font via `next/font/google`. All UI strings are in Turkish; code, file names and component identifiers are English.
+- İşçiler ByteTrack ID ile anonim olarak takip edilir — biyometrik yok
+- Yüz tanıma yapılmaz
+- Anlık görüntüler yalnızca aktif ihlal kanıtı olarak saklanır
+- Tüm rapor dışa aktarımları denetim günlüğüne kaydedilir
 
-> **Note**: anonymous reads on the Supabase tables require RLS policies allowing `SELECT` for the `anon` role. See [docs/supabase_integration.md](docs/supabase_integration.md) for the SQL.
+### 📄 Lisans
 
-## Compliance / Uyum
+**Tescilli — Tüm hakları saklıdır.** Bkz. [LICENSE](LICENSE).
 
-KVKK (Türkiye Kişisel Verilerin Korunması Kanunu) compliant:
+---
 
-- Workers are tracked anonymously by track ID, not by biometric features
-- No facial recognition is performed
-- Snapshots are stored only for active violation evidence
-- All report exports are audit-logged
+<div dir="rtl">
 
-## License / Lisans
+## 🇸🇦 العربية
 
-Proprietary - All rights reserved.
-Tescilli - Tüm hakları saklıdır.
+**İşGözcü** هو نظام رؤية حاسوبية يعمل في الوقت الفعلي لمراقبة مدى التزام عمال مواقع البناء بمعدات الحماية الشخصية (PPE). يكتشف النظام ما إذا كان العمال يرتدون الخوذة، السترة العاكسة، الكمامة، وغيرها من معدات السلامة، ويُنتج تقارير مخالفات قابلة للتدقيق — مع امتثال كامل لقانون حماية البيانات الشخصية التركي (KVKK).
+
+### 🎓 الإشراف الأكاديمي
+
+تم تطوير هذا المشروع تحت الإشراف الأكاديمي للأستاذ  
+**د. مراد شيمشيك (Dr. Murat Şimşek)**  
+جامعة OSTİM التقنية، قسم هندسة الذكاء الاصطناعي، أنقرة
+
+الإطار المنهجي ومقاربة الرؤية الحاسوبية صيغت بتوجيه خبرة د. شيمشيك.
+
+---
+
+### ✨ المزايا الرئيسية
+
+- **كشف معدات الحماية في الوقت الفعلي** — خوذة، سترة، كمامة، قفازات، أحذية أمان (10 فئات)
+- **مراقبة المناطق المحظورة** مع تتبع العمال بشكل مجهول الهوية (ByteTrack)
+- **متوافق مع KVKK** — لا تعرف على الوجوه، ولا تخزين لأي بيانات حيوية
+- **مرحلة معالجة لاحقة** — حدود ثقة خاصة لكل فئة، تحقق هندسي، تنعيم زمني
+- **محرك المخالفات** — مع debouncing وhysteresis لقمع الومضات اللحظية
+- **تقارير امتثال ساعية / يومية / أسبوعية / شهرية** + تصدير PDF
+- **لوحة تحكم Next.js** — بث مباشر MJPEG + تدفق مخالفات في الزمن الحقيقي
+- **حفظ اختياري عبر Supabase** — للأحداث والصور واللوحات
+
+### 🛠 المكدس التقني
+
+| الطبقة | التقنية |
+|---|---|
+| الكشف | RT-DETR (Apache 2.0) عبر HuggingFace `transformers`، مُدرّب على Construction Site Safety (CC BY 4.0) |
+| التتبع | ByteTrack عبر `supervision` (MIT) |
+| الواجهة الخلفية | FastAPI + Uvicorn |
+| قاعدة البيانات | Supabase (PostgreSQL) |
+| الواجهة الأمامية | Next.js 16 (لوحة بألوان زرقاء داكنة) |
+| المعالج الرسومي | NVIDIA CUDA 12.1 (PyTorch 2.5) |
+
+### 🚀 البدء السريع
+
+```powershell
+# 1) إنشاء بيئة Python
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# 2) إعداد المتغيرات السرية
+Copy-Item .env.example .env
+# ثم افتح .env واملأ بيانات Supabase
+
+# 3) تشغيل المحاكي المباشر (الكاميرا)
+python backend\inference\live_simulator.py --input 0 --detector rtdetr --supabase --stream
+
+# 4) تشغيل لوحة التحكم (في طرفية منفصلة)
+cd frontend
+npm install
+npm run dev   # http://localhost:3000
+```
+
+> إذا منع PowerShell التفعيل، نفّذ مرة واحدة:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+### 📁 هيكل المشروع
+
+```
+isgozcu/
+├── backend/
+│   ├── inference/   # RT-DETR + ByteTrack + محرك المخالفات + المعالجة اللاحقة
+│   ├── streaming/   # خادم MJPEG عبر HTTP (FastAPI)
+│   ├── storage/     # عميل Supabase
+│   ├── api/         # نقاط FastAPI
+│   ├── models/      # أوزان النماذج (مستبعد عبر .gitignore)
+│   └── utils/
+├── frontend/        # لوحة المشغّل بـ Next.js 16
+├── docs/            # توثيق المعمارية والقياسات
+├── notebooks/       # تجارب Jupyter
+├── videos/          # فيديوهات اختبار (مستبعدة)
+├── data/snapshots/  # صور إثبات المخالفات (مستبعدة)
+├── data/reports/    # تقارير JSON للجلسات (مستبعدة)
+├── tests/           # اختبارات وحدة + تكامل
+├── .env.example
+├── README.md
+└── requirements.txt
+```
+
+### 📚 التوثيق
+
+| الملف | الوصف |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | معمارية النظام |
+| [docs/migration_yolo_to_rtdetr.md](docs/migration_yolo_to_rtdetr.md) | الانتقال من YOLOv8 إلى RT-DETR وقياسات الأداء |
+| [docs/violation_engine.md](docs/violation_engine.md) | آلة حالات المخالفات وضبطها |
+| [docs/post_processing.md](docs/post_processing.md) | حدود الثقة والتحقق الهندسي والتنعيم |
+| [docs/supabase_integration.md](docs/supabase_integration.md) | طبقة الحفظ وسياسات RLS |
+| [docs/detection_benchmark.md](docs/detection_benchmark.md) | أداء الكشف على فيديوهات الاختبار |
+| [CHANGELOG.md](CHANGELOG.md) | سجل الإصدارات |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | إرشادات المساهمة الداخلية |
+| [SECURITY.md](SECURITY.md) | الإبلاغ عن الثغرات الأمنية |
+
+### ⚖️ توافق التراخيص للنشر التجاري
+
+طبقة الاستدلال الإنتاجية نظيفة من الناحية القانونية وصالحة للاستخدام التجاري:
+
+| المكوّن | الترخيص |
+|---|---|
+| معمارية RT-DETR (Baidu) | Apache 2.0 |
+| أوزان النموذج المُدرَّبة | Apache 2.0 |
+| `transformers` (HuggingFace) | Apache 2.0 |
+| `supervision` (Roboflow) | MIT |
+| قاعدة بيانات Construction Site Safety | CC BY 4.0 |
+| PyTorch | BSD-style |
+
+أمّا YOLOv8 (AGPL-3.0) فيبقى لأغراض المقارنة فقط، **ولا** يُستخدم في أي مسار إنتاج. التفاصيل في [docs/migration_yolo_to_rtdetr.md](docs/migration_yolo_to_rtdetr.md).
+
+### 🔒 KVKK والخصوصية
+
+- يُتتبَّع العمال بشكل مجهول الهوية عبر معرّفات ByteTrack — لا توجد بيانات حيوية
+- لا يُجرى أي تعرف على الوجوه
+- تُحفظ صور الإثبات فقط للمخالفات النشطة
+- جميع عمليات تصدير التقارير مسجّلة للتدقيق
+
+### 📄 الترخيص
+
+**ملكية خاصة — جميع الحقوق محفوظة.** انظر [LICENSE](LICENSE).
+
+</div>
+
+---
+
+<div align="center">
+
+### 🚧 Development status · Geliştirme durumu · حالة التطوير
+
+| Phase | Status | Highlights |
+|---|---|---|
+| Phase 1 — Detection MVP | ✅ Done | YOLOv8 PPE detection on test footage |
+| Phase 2A — RT-DETR migration | ✅ Done | License-clean inference stack, v1 → v5 checkpoints |
+| Phase 2A.7 — Post-processing | ✅ Done | Confidence floors, geometry, vest smoothing |
+| Phase 2B — Violation engine | ✅ Done | Debouncing, hysteresis, snapshots, JSON reports |
+| Phase 2C — Supabase persistence | ✅ Done | Events + snapshots auto-upload |
+| Phase 3.1–3.5 — Dashboard | ✅ Done | Next.js 16, live MJPEG, polling updates |
+| Phase 4 — Auth + multi-site | 🟡 Planned | Operator login, per-site dashboards |
+| Phase 5 — Mobile alerts | ⚪ Planned | Push notifications for active violations |
+
+</div>

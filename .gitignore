@@ -1,10 +1,33 @@
+# ============================================================================
+# Python
+# ============================================================================
 venv/
+.venv/
+env/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# ============================================================================
+# Environment / secrets
+# ============================================================================
 .env
 .env.local
+.env.*.local
+
+# ============================================================================
+# Project data (large / generated / sensitive)
+# ============================================================================
 videos/samples/*.mp4
+videos/samples/*.png
 videos/outputs/*.mp4
+captures/
 data/snapshots/*.jpg
 data/snapshots/*.png
 data/snapshots/**/*.jpg
@@ -21,20 +44,48 @@ data/construction_ppe_filtered/
 data/construction_ppe_v4.zip
 data/construction_ppe_v5/
 logs/
+
+# ============================================================================
+# Model weights (track with Git LFS or download separately)
+# ============================================================================
 backend/models/*.pt
 backend/models/*/
 backend/models/*.zip
+
+# ============================================================================
+# Internal / presentation / scratch — not part of the public repo
+# ============================================================================
+isgozcu_sunum*.pptx
+isgozcu_sunum*.html
+insert_images_to_pptx.py
+test.md
+*.scratch.md
+
+# ============================================================================
+# Editor / IDE
+# ============================================================================
 .vscode/
 .idea/
-*.log
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
+desktop.ini
 
+# ============================================================================
+# Claude Code / agent scratch
+# ============================================================================
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+frontend/CLAUDE.md
+frontend/AGENTS.md
+
+# ============================================================================
 # Frontend (Next.js)
+# ============================================================================
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
 frontend/.env*.local
 frontend/.turbo/
-frontend/CLAUDE.md
-frontend/AGENTS.md
+frontend/tsconfig.tsbuildinfo

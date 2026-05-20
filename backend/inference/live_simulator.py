@@ -67,6 +67,16 @@ def _import_supabase():
     return SupabaseClient, SiteManager, WorkerRegistry, EventUploader
 
 
+# Streaming imports are also lazy: only loaded if --stream is passed.
+def _import_streaming():
+    from backend.streaming.mjpeg_server import (  # noqa: WPS433
+        register_camera,
+        start_server,
+        update_frame,
+    )
+    return start_server, register_camera, update_frame
+
+
 # Colors (BGR)
 COLOR_PERSON = (200, 100, 0)
 COLOR_HARDHAT = (0, 255, 0)
@@ -144,6 +154,9 @@ class LiveStreamSimulator:
         enable_supabase: bool = False,
         site_name: str = "Demo Şantiye",
         enable_post_process: bool = True,
+        enable_stream: bool = False,
+        stream_port: int = 8001,
+        stream_jpeg_quality: int = 75,
     ) -> None:
         self.video_path = video_path
         self.is_webcam = isinstance(video_path, int)
@@ -250,6 +263,25 @@ class LiveStreamSimulator:
                         print("[uyarı] Supabase bağlamı oluşturulamadı — yerel modda devam.")
             except Exception as e:
                 print(f"[uyarı] Supabase başlatma hatası: {e} — yerel modda devam.")
+
+        # MJPEG streaming (opt-in via --stream). Failures degrade to local-only.
+        self.stream_enabled = False
+        self._stream_update_frame = None  # callable: (camera_id, jpeg_bytes) -> None
+        self.stream_port = int(stream_port)
+        self.stream_jpeg_quality = int(stream_jpeg_quality)
+        if enable_stream:
+            try:
+                start_server, register_camera, update_frame = _import_streaming()
+                start_server(host="0.0.0.0", port=self.stream_port)
+                register_camera(self.camera_id)
+                self._stream_update_frame = update_frame
+                self.stream_enabled = True
+                print(
+                    f"[bilgi] Yayın aktif: GET /stream/{self.camera_id} "
+                    f"(http://localhost:{self.stream_port})"
+                )
+            except Exception as e:
+                print(f"[uyarı] Yayın sunucusu başlatılamadı: {e} — yayın kapalı.")
 
         # State
         self.loop_count = 0
@@ -564,6 +596,9 @@ class LiveStreamSimulator:
         pp_label = "PP: ON" if self.enable_post_process else "PP: OFF"
         pp_color = (60, 220, 60) if self.enable_post_process else (130, 130, 130)
         _put_text_outlined(canvas, pp_label, (w - 86, h - 14), scale=0.55, fg=pp_color, thickness=2)
+        # Streaming pill (left of PP) — only visible when --stream was set.
+        if self.stream_enabled:
+            _put_text_outlined(canvas, "STREAM", (w - 170, h - 14), scale=0.55, fg=(220, 180, 60), thickness=2)
 
         # Loop overlay (centered, 1.2s)
         if time.time() < self.loop_overlay_until:
@@ -643,6 +678,21 @@ class LiveStreamSimulator:
                     self.total_frames_processed += 1
 
                 self.last_canvas = canvas
+
+                # Push to MJPEG stream (if --stream was passed). Encoding
+                # ~1280x720 at quality 75 is ~1–2 ms on commodity CPUs,
+                # so we don't bother throttling here.
+                if self.stream_enabled and self._stream_update_frame is not None:
+                    try:
+                        ok_jpg, jpg = cv2.imencode(
+                            ".jpg",
+                            canvas,
+                            [int(cv2.IMWRITE_JPEG_QUALITY), self.stream_jpeg_quality],
+                        )
+                        if ok_jpg:
+                            self._stream_update_frame(self.camera_id, jpg.tobytes())
+                    except Exception as e:  # don't kill the loop on encode errors
+                        print(f"[uyarı] Yayın kodlama hatası: {e}")
 
                 if not self.headless:
                     cv2.imshow(WINDOW_TITLE, canvas)
@@ -848,6 +898,14 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
                         "geometry, hardhat dedup, vest temporal smoothing). On by default.")
     p.add_argument("--no-post-process", dest="post_process", action="store_false",
                    help="Disable the post-processing layer (raw model output). Useful for A/B.")
+    p.add_argument("--stream", action="store_true",
+                   help="Serve annotated frames over MJPEG so the Next.js dashboard "
+                        "can display the live feed. Off by default.")
+    p.add_argument("--stream-port", type=int, default=8001,
+                   help="Port for the MJPEG server (default 8001). Ignored if --stream is off.")
+    p.add_argument("--stream-quality", type=int, default=75,
+                   help="JPEG quality 1–100 for the MJPEG stream (default 75 — good "
+                        "size/quality trade-off at 1280x720).")
     return p.parse_args(argv)
 
 
@@ -900,6 +958,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         enable_supabase=args.supabase,
         site_name=args.site_name,
         enable_post_process=args.post_process,
+        enable_stream=args.stream,
+        stream_port=args.stream_port,
+        stream_jpeg_quality=args.stream_quality,
     )
     return sim.run()
 

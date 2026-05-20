@@ -1,0 +1,119 @@
+name: ✨ Feature request · Özellik isteği · طلب ميزة
+description: |
+  Suggest a new feature or improvement for İşGözcü.
+  İşGözcü için yeni bir özellik veya iyileştirme önerin.
+  اقترح ميزة جديدة أو تحسينًا لـ İşGözcü.
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🇬🇧 EN · 🇹🇷 TR · 🇸🇦 AR
+
+        Thanks for proposing an improvement. Before opening, please make sure the feature fits the project's pre-release scope and KVKK-first design.
+
+        Bir iyileştirme önerdiğiniz için teşekkürler. Açmadan önce, lütfen özelliğin projenin ön sürüm kapsamına ve KVKK öncelikli tasarıma uyduğundan emin olun.
+
+        شكرًا لاقتراحك تحسينًا. قبل الفتح، يُرجى التأكد من أن الميزة تتناسب مع نطاق ما قبل الإصدار للمشروع ومع التصميم الذي يضع KVKK في الأولوية.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites · Ön kontroller · فحوصات مسبقة
+      options:
+        - label: I have searched existing issues and discussions for a similar proposal. · Benzer bir öneri için mevcut issue'ları ve tartışmaları aradım. · بحثت في القضايا والمناقشات الموجودة عن اقتراح مماثل.
+          required: true
+        - label: This proposal respects the project's KVKK / privacy posture (no facial recognition, no biometric storage). · Bu öneri projenin KVKK / gizlilik duruşuna saygı duyar (yüz tanıma yok, biyometrik depolama yok). · هذا الاقتراح يحترم موقف KVKK / الخصوصية للمشروع (لا تعرف على الوجوه، ولا تخزين حيوي).
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem · Sorun · المشكلة
+      description: |
+        What user problem does this feature solve? (Skip the solution for now.)
+        Bu özellik hangi kullanıcı sorununu çözüyor? (Çözümü şimdilik atlayın.)
+        ما مشكلة المستخدم التي تحلّها هذه الميزة؟ (تجاهل الحل في الوقت الحالي.)
+      placeholder: |
+        e.g. Operators currently cannot see which camera produced a given violation when reviewing the dashboard.
+        örn. Operatörler şu anda panelde bir ihlali incelerken hangi kameranın ürettiğini göremiyorlar.
+        مثال: لا يستطيع المشغّلون حاليًا رؤية أي كاميرا أنتجت مخالفة معينة عند مراجعة اللوحة.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution · Önerilen çözüm · الحل المقترح
+      description: |
+        Describe the smallest possible change that solves the problem ("minimum lovable feature").
+        Sorunu çözen en küçük olası değişikliği tanımlayın ("minimum sevilebilir özellik").
+        صف أصغر تغيير ممكن يحل المشكلة ("الحد الأدنى من الميزة المحبوبة").
+      placeholder: |
+        e.g. Add a `camera_name` column to the violations table on `/ihlaller`.
+        örn. `/ihlaller` üzerindeki ihlaller tablosuna `camera_name` sütunu ekleyin.
+        مثال: أضف عمود `camera_name` إلى جدول المخالفات في `/ihlaller`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered · Düşünülen alternatifler · بدائل تم اعتبارها
+      description: |
+        Other approaches you considered, and why you preferred the one above.
+        Düşündüğünüz diğer yaklaşımlar ve yukarıdakini neden tercih ettiğiniz.
+        المقاربات الأخرى التي اعتبرتها، ولماذا فضّلت ما سبق.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Primary component · Birincil bileşen · المكوّن الأساسي
+      options:
+        - Detector / model
+        - Post-processor
+        - Violation engine
+        - Live simulator / HUD
+        - MJPEG streaming
+        - Supabase persistence
+        - Next.js dashboard
+        - CLI / DX
+        - Documentation
+        - Cross-cutting / mimari
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (your view) · Öncelik (sizin görüşünüze göre) · الأولوية (من وجهة نظرك)
+      options:
+        - "Critical — blocks our deployment"
+        - "High — would significantly improve operations"
+        - "Medium — nice to have"
+        - "Low — speculative / future"
+    validations:
+      required: true
+
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy / KVKK impact · Gizlilik / KVKK etkisi · أثر الخصوصية / KVKK
+      description: |
+        Does this feature introduce, store, or transmit any new personal data? If so, how is it minimized?
+        Bu özellik herhangi bir yeni kişisel veriyi tanıtır, depolar veya iletir mi? Öyleyse nasıl en aza indirilir?
+        هل تُدخل هذه الميزة أو تخزن أو تنقل أي بيانات شخصية جديدة؟ إن نعم، كيف يتم تقليلها؟
+      placeholder: |
+        e.g. No new personal data — only references existing tracker_id strings already in the workers table.
+        örn. Yeni kişisel veri yok — yalnızca workers tablosunda zaten var olan tracker_id dizilerine atıfta bulunur.
+        مثال: لا توجد بيانات شخصية جديدة — يُشير فقط إلى سلاسل tracker_id الموجودة بالفعل في جدول workers.
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context · Ek bağlam · سياق إضافي
+      description: |
+        Mockups, links, examples from other tools, etc.
+        Mockuplar, linkler, diğer araçlardan örnekler vb.
+        نماذج أوّليّة، روابط، أمثلة من أدوات أخرى، إلخ.

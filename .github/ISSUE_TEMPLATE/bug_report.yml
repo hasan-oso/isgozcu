@@ -1,0 +1,167 @@
+name: 🐛 Bug report · Hata raporu · بلاغ خطأ
+description: |
+  Report a reproducible bug in İşGözcü.
+  İşGözcü'de tekrarlanabilir bir hatayı bildirin.
+  أبلغ عن خطأ قابل لإعادة الإنتاج في İşGözcü.
+title: "[Bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🇬🇧 EN · 🇹🇷 TR · 🇸🇦 AR
+
+        Thanks for taking the time to report a bug. Please fill in as many fields as you can — the more detail, the faster we can fix it.
+
+        Hata bildirmek için ayırdığınız zaman için teşekkürler. Lütfen mümkün olduğunca çok alan doldurun — ne kadar ayrıntı, o kadar hızlı düzeltme.
+
+        شكرًا لتخصيصك الوقت للإبلاغ عن خطأ. يُرجى تعبئة أكبر عدد ممكن من الحقول — كلما زادت التفاصيل، أسرع نصلح المشكلة.
+
+        ---
+
+        > ⚠️ **Do NOT report security vulnerabilities here.** Use [GitHub Security Advisories](../../security/advisories/new) instead.
+        > ⚠️ **Güvenlik açıklarını burada bildirmeyin.** Bunun yerine [GitHub Security Advisories](../../security/advisories/new) kullanın.
+        > ⚠️ **لا تُبلغ عن الثغرات الأمنية هنا.** استخدم [GitHub Security Advisories](../../security/advisories/new) بدلاً من ذلك.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites · Ön kontroller · فحوصات مسبقة
+      description: |
+        Before opening, please confirm:
+        Açmadan önce lütfen onaylayın:
+        قبل الفتح يُرجى التأكد:
+      options:
+        - label: I have searched existing issues and found no duplicate. · Mevcut issue'ları aradım ve kopya bulamadım. · بحثت في القضايا الموجودة ولم أجد تكرارًا.
+          required: true
+        - label: I am on the latest `master` branch. · En son `master` dalındayım. · أنا على آخر فرع `master`.
+          required: true
+        - label: I have read [CONTRIBUTING.md](../blob/master/CONTRIBUTING.md). · [CONTRIBUTING.md](../blob/master/CONTRIBUTING.md)'yi okudum. · قرأت [CONTRIBUTING.md](../blob/master/CONTRIBUTING.md).
+          required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component · Etkilenen bileşen · المكوّن المتأثر
+      description: |
+        Which part of the system is affected?
+        Sistemin hangi parçası etkilendi?
+        أيّ جزء من النظام تأثَّر؟
+      options:
+        - Detector (RT-DETR / YOLO inference)
+        - Post-processor
+        - Violation engine
+        - ByteTrack tracking
+        - Live simulator / HUD
+        - MJPEG streaming server
+        - Supabase persistence layer
+        - Next.js dashboard
+        - CLI / scripts
+        - Documentation
+        - Other / Diğer / أخرى
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description · Hata açıklaması · وصف الخطأ
+      description: |
+        Clear, concise description of what the bug is.
+        Hatanın ne olduğunun açık ve özlü açıklaması.
+        وصف واضح ومختصر للخطأ.
+      placeholder: |
+        e.g. The live simulator crashes with a CUDA out-of-memory error after ~3 minutes when the Supabase upload is enabled.
+        örn. Supabase yüklemesi açıkken canlı simülatör ~3 dakika sonra CUDA bellek hatasıyla çöküyor.
+        مثال: المحاكي ينهار بخطأ CUDA out-of-memory بعد حوالي 3 دقائق عند تفعيل رفع Supabase.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce · Yeniden üretim adımları · خطوات إعادة الإنتاج
+      description: |
+        Exact commands and inputs.
+        Tam komutlar ve girdiler.
+        الأوامر والمدخلات الكاملة.
+      placeholder: |
+        1. `python backend\inference\live_simulator.py --input 0 --supabase`
+        2. Wait ~3 minutes / ~3 dakika bekleyin / انتظر حوالي 3 دقائق
+        3. Observe the crash / Çökmeyi gözlemleyin / لاحظ الانهيار
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior · Beklenen davranış · السلوك المتوقع
+      placeholder: |
+        e.g. The simulator should run indefinitely without leaking GPU memory.
+        örn. Simülatör GPU belleği sızdırmadan süresiz çalışmalı.
+        مثال: يجب أن يعمل المحاكي إلى أجل غير مسمى دون تسريب ذاكرة GPU.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior · Gözlemlenen davranış · السلوك الفعلي
+      placeholder: |
+        e.g. After ~3 minutes the process exits with: `RuntimeError: CUDA out of memory. Tried to allocate 24.00 MiB ...`
+        örn. ~3 dakika sonra süreç şu hatayla çıkar: `RuntimeError: CUDA out of memory. ...`
+        مثال: بعد حوالي 3 دقائق تخرج العملية بـ: `RuntimeError: CUDA out of memory. ...`
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / console output · Günlükler / konsol çıktısı · سجلات / مخرجات الكونسول
+      description: |
+        Paste relevant log lines. Long logs → use a gist.
+        İlgili log satırlarını yapıştırın. Uzun loglar → gist kullanın.
+        ألصق أسطر السجل ذات الصلة. السجلات الطويلة → استخدم gist.
+      render: shell
+
+  - type: input
+    id: detector-version
+    attributes:
+      label: Detector version · Dedektör sürümü · إصدار الكاشف
+      description: |
+        Output of `--model-version` or the model path.
+        `--model-version` çıktısı veya model yolu.
+        مخرجات `--model-version` أو مسار النموذج.
+      placeholder: "v3 / rtdetr_isgozcu_ppe_v5 / yolov8n.pt"
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.10.11"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS · İşletim sistemi · نظام التشغيل
+      placeholder: "Windows 11 / Ubuntu 22.04 / macOS 14.5"
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU · Ekran kartı · بطاقة الرسوميات
+      placeholder: "RTX 3050 Laptop (4 GB VRAM, CUDA 12.1) / CPU only"
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context · Ek bağlam · سياق إضافي
+      description: |
+        Anything else — screenshots, related issues, hypothesis.
+        Başka bir şey — ekran görüntüleri, ilgili issue'lar, hipotez.
+        أي شيء آخر — لقطات شاشة، قضايا ذات صلة، فرضية.

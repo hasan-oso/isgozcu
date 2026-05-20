@@ -35,11 +35,11 @@ class DetectionPostProcessor:
     CONFIDENCE_FLOORS: dict[str, float] = {
         "Hardhat": 0.50,
         "NO-Hardhat": 0.55,
-        "Safety Vest": 0.65,        # higher: vest is the flicker problem
-        "NO-Safety Vest": 0.70,     # highest: most prone to false positives
+        "Safety Vest": 0.50,        # higher: vest is the flicker problem
+        "NO-Safety Vest": 0.55,     # highest: most prone to false positives
         "Mask": 0.60,
         "NO-Mask": 0.65,
-        "Person": 0.75,             # higher: shadow / chair false positives
+        "Person": 0.50,             # higher: shadow / chair false positives
         "Safety Cone": 0.50,
         "machinery": 0.55,
         "vehicle": 0.55,

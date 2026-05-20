@@ -1,0 +1,130 @@
+PROPRIETARY SOFTWARE LICENSE
+İşGözcü — Construction Site Safety Intelligence
+
+Copyright (c) 2026 İşGözcü. All rights reserved.
+
+================================================================================
+ENGLISH
+================================================================================
+
+This software, including its source code, model weights, trained checkpoints,
+documentation, datasets, and any accompanying materials (collectively, the
+"Software"), is proprietary and confidential. All rights are reserved by the
+copyright holder.
+
+NO PERMISSION IS GRANTED to any person or entity to:
+
+  (a) use, copy, modify, merge, publish, distribute, sublicense, or sell
+      copies of the Software;
+  (b) deploy the Software in any production environment, whether commercial
+      or non-commercial;
+  (c) reverse-engineer, decompile, or disassemble the Software;
+  (d) remove or alter any copyright, trademark, or attribution notices;
+
+without the prior, explicit, written authorization of the copyright holder.
+
+LIMITED VIEWING. This repository may be made visible on hosted code platforms
+for the sole purpose of evaluation, internal collaboration, and academic
+discussion. Visibility on such platforms does not constitute a grant of any
+license, express or implied, to use the Software.
+
+THIRD-PARTY COMPONENTS. The Software depends on third-party libraries and
+datasets distributed under their own licenses (Apache 2.0, MIT, BSD, CC BY
+4.0, and others). The proprietary terms above apply only to the original
+work of İşGözcü; third-party components remain governed by their respective
+licenses. See README.md for a license inventory.
+
+NO WARRANTY. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+LIMITATION OF LIABILITY. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR
+ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OR INABILITY TO
+USE THE SOFTWARE.
+
+For licensing inquiries, partnerships, or commercial deployment requests,
+please contact the maintainer through the repository's official channels.
+
+================================================================================
+TÜRKÇE
+================================================================================
+
+Bu yazılım — kaynak kodu, model ağırlıkları, eğitilmiş kontrol noktaları,
+belgeler, veri kümeleri ve eşlik eden tüm materyaller dahil (topluca
+"Yazılım") — tescilli ve gizlidir. Tüm hakları telif hakkı sahibine aittir.
+
+AŞAĞIDAKİ EYLEMLER İÇİN HİÇBİR KİŞİYE VEYA KURUMA İZİN VERİLMEMİŞTİR:
+
+  (a) Yazılımı kullanmak, kopyalamak, değiştirmek, birleştirmek, yayımlamak,
+      dağıtmak, alt-lisanslamak veya kopyalarını satmak;
+  (b) Yazılımı herhangi bir üretim ortamında (ticari veya değil) konuşlandırmak;
+  (c) Yazılımı tersine mühendislik etmek, derlemesini açmak veya parçalamak;
+  (d) Telif hakkı, ticari marka veya atıf bildirimlerini kaldırmak veya
+      değiştirmek;
+
+bunları yapmak için telif hakkı sahibinden önceden açık ve yazılı izin
+alınmalıdır.
+
+SINIRLI GÖRÜNTÜLEME. Bu depo, yalnızca değerlendirme, dahili işbirliği ve
+akademik tartışma amacıyla kod barındırma platformlarında görünür olabilir.
+Bu görünürlük, Yazılımın kullanımı için açık ya da zımni hiçbir lisans
+verilmesi anlamına gelmez.
+
+ÜÇÜNCÜ TARAF BİLEŞENLER. Yazılım, kendi lisansları altında dağıtılan
+üçüncü taraf kütüphanelere ve veri kümelerine bağımlıdır (Apache 2.0, MIT,
+BSD, CC BY 4.0 ve diğerleri). Yukarıdaki tescilli koşullar yalnızca
+İşGözcü'nün özgün çalışması için geçerlidir; üçüncü taraf bileşenleri
+kendi lisansları altında kalmaya devam eder. Lisans envanteri için
+README.md dosyasına bakınız.
+
+GARANTİ YOK. YAZILIM, AÇIK VEYA ZIMNİ HİÇBİR GARANTİ OLMAKSIZIN "OLDUĞU GİBİ"
+SAĞLANMAKTADIR; TİCARİ ELVERİŞLİLİK, BELİRLİ BİR AMACA UYGUNLUK VE İHLAL
+ETMEME GARANTİLERİ DAHİL ANCAK BUNLARLA SINIRLI OLMAMAK ÜZERE.
+
+SORUMLULUK SINIRLAMASI. TELİF HAKKI SAHİBİ, YAZILIMIN KULLANIMINDAN VEYA
+KULLANILAMAMASINDAN DOĞAN HİÇBİR TALEP, HASAR VEYA YÜKÜMLÜLÜKTEN SORUMLU
+TUTULAMAZ.
+
+Lisanslama, ortaklık veya ticari konuşlandırma talepleri için lütfen
+deponun resmi iletişim kanalları üzerinden bakım sorumlusuyla iletişime
+geçiniz.
+
+================================================================================
+العربية
+================================================================================
+
+هذا البرنامج، بما في ذلك شيفرته المصدرية وأوزان نماذجه ونقاط التدريب
+والوثائق ومجموعات البيانات وأي مواد مرافقة (يُشار إليها مجتمعةً بـ
+"البرنامج")، هو ملكية خاصة وسرّي. جميع الحقوق محفوظة لصاحب حقوق النشر.
+
+لا يُمنح أي شخص أو جهة الإذن بـ:
+
+  (أ) استخدام البرنامج أو نسخه أو تعديله أو دمجه أو نشره أو توزيعه
+      أو منح ترخيصه من الباطن أو بيع نسخ منه؛
+  (ب) نشر البرنامج في أي بيئة إنتاج، تجارية كانت أو غير تجارية؛
+  (ج) إجراء الهندسة العكسية على البرنامج أو فك ترجمته أو تفكيكه؛
+  (د) إزالة أو تعديل أي إشعارات حقوق نشر أو علامات تجارية أو إسناد؛
+
+دون الحصول على إذن خطي مسبق وصريح من صاحب حقوق النشر.
+
+العرض المحدود. قد يكون هذا المستودع مرئيًا على منصات استضافة الشيفرة
+لأغراض التقييم والتعاون الداخلي والنقاش الأكاديمي فقط. لا يُعدّ ظهور
+المستودع على هذه المنصات منحًا لأي ترخيص، صريح أو ضمني، باستخدام
+البرنامج.
+
+المكونات الخارجية. يعتمد البرنامج على مكتبات ومجموعات بيانات تابعة لجهات
+خارجية، يتم توزيعها بموجب تراخيصها الخاصة (Apache 2.0، MIT، BSD،
+CC BY 4.0، وغيرها). تنطبق الشروط الخاصة بالملكية أعلاه فقط على العمل
+الأصلي لـ İşGözcü؛ بينما تبقى المكونات الخارجية محكومة بتراخيصها
+الخاصة. انظر README.md لقائمة التراخيص.
+
+إخلاء مسؤولية. يُقدَّم البرنامج "كما هو" دون أي ضمانات من أي نوع، صريحة
+كانت أو ضمنية، بما في ذلك على سبيل المثال لا الحصر ضمانات القابلية
+للتسويق والملاءمة لغرض معين وعدم الانتهاك.
+
+تحديد المسؤولية. لا يتحمل صاحب حقوق النشر في أي حال من الأحوال أي
+مطالبة أو ضرر أو مسؤولية ناجمة عن استخدام البرنامج أو عدم القدرة على
+استخدامه.
+
+للاستفسارات المتعلقة بالترخيص أو الشراكات أو طلبات النشر التجاري،
+يُرجى التواصل مع المشرف عبر القنوات الرسمية للمستودع.

@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Security vulnerability / Güvenlik açığı / ثغرة أمنية
+    url: https://github.com/your-org/isgozcu/security/advisories/new
+    about: |
+      Please report security vulnerabilities privately via GitHub Security Advisories.
+      Güvenlik açıklarını lütfen GitHub Security Advisories üzerinden özel olarak bildirin.
+      يُرجى الإبلاغ عن الثغرات الأمنية بشكل خاص عبر GitHub Security Advisories.
+  - name: 💬 General questions / Genel sorular / أسئلة عامة
+    url: https://github.com/your-org/isgozcu/discussions
+    about: |
+      For usage questions or general discussion, please use Discussions instead of Issues.
+      Kullanım soruları veya genel tartışmalar için lütfen Issues yerine Discussions kullanın.
+      للأسئلة العامة والنقاشات يُرجى استخدام Discussions بدلاً من Issues.
