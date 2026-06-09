@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>İşGözcü — Canlı İzleme</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e; --accent:#2f81f7;
+    --green:#3fb950; --red:#f85149; --amber:#d29922;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--text);overflow:hidden;
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  }
+  .app{display:flex;flex-direction:column;height:100vh;width:100vw}
+
+  /* header */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 22px;background:linear-gradient(180deg,#11161f,#0d1117);
+    border-bottom:1px solid var(--border);
+  }
+  .brand{display:flex;align-items:baseline;gap:12px}
+  .logo{font-size:24px;font-weight:800;letter-spacing:.5px}
+  .logo .i{color:var(--accent)}
+  .brand .sub{color:var(--muted);font-size:13px}
+  .status{display:flex;align-items:center;gap:14px;font-size:14px;color:var(--muted)}
+  .status .live{display:flex;align-items:center;gap:8px;color:var(--text);font-weight:600}
+  .dot{width:11px;height:11px;border-radius:50%;background:var(--green);
+       box-shadow:0 0 0 0 rgba(63,185,80,.7);animation:pulse 1.6s infinite}
+  .dot.fallback{background:var(--amber);animation:pulseA 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,80,.6)}70%{box-shadow:0 0 0 9px rgba(63,185,80,0)}100%{box-shadow:0 0 0 0 rgba(63,185,80,0)}}
+  @keyframes pulseA{0%{box-shadow:0 0 0 0 rgba(210,153,34,.6)}70%{box-shadow:0 0 0 9px rgba(210,153,34,0)}100%{box-shadow:0 0 0 0 rgba(210,153,34,0)}}
+  #clock{font-variant-numeric:tabular-nums}
+  .btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);
+       padding:7px 13px;border-radius:9px;font-size:13px;cursor:pointer;transition:all .15s}
+  .btn:hover{background:#243049;border-color:#3d4d6b}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:#3b8eff}
+
+  /* main */
+  main{flex:1;display:flex;gap:16px;padding:16px;min-height:0}
+  .left{flex:1 1 70%;display:flex;flex-direction:column;gap:14px;min-width:0}
+  .right{flex:0 0 30%;max-width:430px;display:flex;flex-direction:column;min-height:0}
+
+  /* cards */
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+  .card .cn{color:var(--muted);font-size:13px;margin-bottom:6px}
+  .card .cv{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;transition:color .3s}
+  .card.ok .cv{color:var(--green)}
+  .card.bad .cv{color:var(--red)}
+  .card.rate .cv{color:var(--accent)}
+
+  /* stream */
+  .stream{flex:1;min-height:0;background:#000;border:1px solid var(--border);
+          border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative}
+  .stream img{width:100%;height:100%;object-fit:contain;display:block}
+  .stream .tag{position:absolute;top:12px;left:14px;background:rgba(0,0,0,.55);
+               padding:4px 10px;border-radius:8px;font-size:12px;color:#cdd9e5}
+
+  /* violation flow */
+  .right h2{font-size:15px;margin:2px 4px 10px;color:var(--text)}
+  .vflow{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px}
+  .vflow::-webkit-scrollbar{width:8px}
+  .vflow::-webkit-scrollbar-thumb{background:#30363d;border-radius:8px}
+  .vcard{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--border);
+         border-radius:12px;padding:11px 13px;animation:cardIn .28s ease;transition:opacity .5s,border-color .3s}
+  @keyframes cardIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+  .vcard.active{border-left-color:var(--red);background:linear-gradient(90deg,rgba(248,81,73,.10),var(--panel))}
+  .vcard.ended{opacity:.42;border-left-color:var(--muted)}
+  .vcard .vt{font-weight:700;font-size:15px}
+  .vcard.active .vt{color:var(--red)}
+  .vcard .vmeta{color:var(--muted);font-size:12.5px;margin-top:4px}
+  .vcard .vtime{color:#6e7681;font-size:11.5px;margin-top:3px}
+  .vcard .thumb{width:100%;max-height:96px;object-fit:cover;border-radius:8px;margin-top:9px;border:1px solid var(--border)}
+  .empty{color:var(--muted);text-align:center;padding:30px 10px;border:1px dashed var(--border);border-radius:12px}
+
+  /* footer */
+  footer{padding:8px 22px;border-top:1px solid var(--border);background:#0b0f16;
+         color:var(--muted);font-size:12.5px;text-align:center;letter-spacing:.3px}
+  footer b{color:var(--green);font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <span class="logo">İş<span class="i">Gözcü</span></span>
+      <span class="sub">Şantiye Güvenlik İzleme</span>
+    </div>
+    <div class="status">
+      <span class="live"><span class="dot" id="dot"></span> <span id="modeLabel">Canlı</span> · <span id="src">Kamera 1</span></span>
+      <span id="clock">--:--:--</span>
+      <button class="btn" id="btnSource" title="Canlı ↔ Yedek video">Kaynak değiştir</button>
+      <button class="btn primary" id="btnFull">Tam ekran</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="left">
+      <div class="cards">
+        <div class="card"><div class="cn">Toplam işçi</div><div class="cv" id="c-workers">0</div></div>
+        <div class="card ok"><div class="cn">Kurallara uyan</div><div class="cv" id="c-ok">0</div></div>
+        <div class="card bad"><div class="cn">İhlal</div><div class="cv" id="c-viol">0</div></div>
+        <div class="card rate"><div class="cn">Uyum oranı</div><div class="cv" id="c-rate">%100</div></div>
+      </div>
+      <div class="stream">
+        <img id="stream" src="/stream" alt="Canlı yayın" />
+        <span class="tag" id="fpsTag">FPS —</span>
+      </div>
+    </section>
+
+    <aside class="right">
+      <h2>İhlal akışı</h2>
+      <div id="vflow" class="vflow"><div class="empty">Aktif ihlal yok</div></div>
+    </aside>
+  </main>
+
+  <footer>Yerel mod · <b>KVKK uyumlu</b> · Yüz tanıma yok · Anonim takip (ByteTrack)</footer>
+</div>
+
+<script>
+  // live clock (Turkish locale)
+  const tickClock = () => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("tr-TR"); };
+  setInterval(tickClock, 1000); tickClock();
+
+  // fullscreen (true kiosk look)
+  document.getElementById("btnFull").onclick = () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  };
+
+  // manual source switch (rehearsal / emergency)
+  document.getElementById("btnSource").onclick = async () => {
+    const b = document.getElementById("btnSource");
+    b.disabled = true; b.textContent = "Değiştiriliyor…";
+    try { await fetch("/toggle-source", { method: "POST" }); } catch (e) {}
+    setTimeout(() => { b.disabled = false; b.textContent = "Kaynak değiştir"; }, 1200);
+  };
+
+  // MJPEG stream auto-plays in <img>; retry on error/disconnect
+  const img = document.getElementById("stream");
+  img.onerror = () => setTimeout(() => { img.src = "/stream?t=" + Date.now(); }, 1500);
+
+  // remember violations so ended ones fade for a few seconds
+  const tracked = new Map();           // key -> {data, endedAt|null}
+  const vkey = v => v.track_id + "|" + v.type_tr;
+
+  function renderViolations(viols){
+    const now = Date.now();
+    const activeKeys = new Set(viols.map(vkey));
+    viols.forEach(v => tracked.set(vkey(v), { data: v, endedAt: null }));
+    for (const [k, e] of tracked){
+      if (!activeKeys.has(k) && e.endedAt === null) e.endedAt = now;
+      if (e.endedAt !== null && now - e.endedAt > 5000) tracked.delete(k);
+    }
+    const items = [...tracked.values()].sort((a, b) => (a.endedAt ? 1 : 0) - (b.endedAt ? 1 : 0));
+    const box = document.getElementById("vflow");
+    if (!items.length){ box.innerHTML = '<div class="empty">Aktif ihlal yok</div>'; return; }
+    box.innerHTML = items.map(e => {
+      const v = e.data, ended = e.endedAt !== null;
+      const conf = Math.round((v.confidence || 0) * 100);
+      const thumb = v.snapshot ? `<img class="thumb" src="${v.snapshot}" alt="kanıt görüntüsü" loading="lazy">` : "";
+      return `<div class="vcard ${ended ? "ended" : "active"}">
+        <div class="vt">${v.type_tr}${ended ? " · sona erdi" : ""}</div>
+        <div class="vmeta">İşçi #${v.track_id} · süre ${v.duration}s · güven %${conf}</div>
+        <div class="vtime">Başlangıç ${v.started}</div>
+        ${thumb}
+      </div>`;
+    }).join("");
+  }
+
+  function applyHealth(h){
+    if (!h) return;
+    const dot = document.getElementById("dot");
+    const fallback = h.mode === "fallback";
+    dot.classList.toggle("fallback", fallback);
+    document.getElementById("modeLabel").textContent = fallback ? "Yedek" : "Canlı";
+    if (h.source) document.getElementById("src").textContent = h.source;
+  }
+
+  async function poll(){
+    try{
+      const [sr, hr] = await Promise.all([
+        fetch("/stats", { cache: "no-store" }),
+        fetch("/health", { cache: "no-store" }),
+      ]);
+      const s = await sr.json();
+      applyHealth(await hr.json());
+      const workers = s.workers || 0;
+      const viols = s.violations || [];
+      const violators = new Set(viols.map(v => v.track_id));
+      const uyan = Math.max(0, workers - violators.size);
+      const rate = workers > 0 ? Math.round(uyan / workers * 100) : 100;
+      document.getElementById("c-workers").textContent = workers;
+      document.getElementById("c-ok").textContent = uyan;
+      document.getElementById("c-viol").textContent = s.active_violations || 0;
+      document.getElementById("c-rate").textContent = "%" + rate;
+      document.getElementById("fpsTag").textContent = "FPS " + (s.fps ?? "—");
+      renderViolations(viols);
+    }catch(e){ /* keep last values on transient error */ }
+  }
+  setInterval(poll, 1000); poll();
+</script>
+</body>
+</html>

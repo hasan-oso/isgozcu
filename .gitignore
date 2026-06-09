@@ -89,3 +89,9 @@ frontend/.env.local
 frontend/.env*.local
 frontend/.turbo/
 frontend/tsconfig.tsbuildinfo
+
+# ============================================================================
+# App demo / kiosk outputs (heavy, generated — not tracked)
+# ============================================================================
+app/demo_output/
+app/snapshots/
