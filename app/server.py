@@ -39,6 +39,7 @@ from core.labels_tr import tr
 from core.violations import IoUMatcher, ViolationDetector
 
 UI_HTML = PROJECT_ROOT / "ui" / "kiosk.html"
+STATUS_HTML = PROJECT_ROOT / "ui" / "status.html"
 SNAP_DIR = PROJECT_ROOT / "app" / "snapshots"
 JPEG_QUALITY = 80
 FAIL_LIMIT = 30  # consecutive failed live-camera reads -> auto-switch to fallback
@@ -80,7 +81,7 @@ class FrameBuffer:
 class SharedStats:
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._data = {"fps": 0.0, "workers": 0, "active_violations": 0, "violations": []}
+        self._data = {"fps": 0.0, "workers": 0, "active_violations": 0, "violations": [], "inference_ms": 0.0}
 
     def set(self, data: dict) -> None:
         with self._lock:
@@ -263,7 +264,8 @@ class ProcessingWorker(threading.Thread):
                     "snapshot": self.snapshots.get(ev.event_id),
                 } for ev in vd.active()]
                 STATS.set({"fps": round(fps_ema, 1), "workers": len(persons),
-                           "active_violations": len(vlist), "violations": vlist})
+                           "active_violations": len(vlist), "violations": vlist,
+                           "inference_ms": round(detector.stats()["avg_inference_ms"], 1)})
             except Exception:
                 pass  # a single bad frame must never crash the server
 
@@ -316,6 +318,13 @@ def index():
     if not UI_HTML.exists():
         return HTMLResponse("<h1>ui/kiosk.html bulunamadı</h1>", status_code=500)
     return HTMLResponse(UI_HTML.read_text(encoding="utf-8"))
+
+
+@app.get("/status", response_class=HTMLResponse)
+def status_page():
+    if not STATUS_HTML.exists():
+        return HTMLResponse("<h1>ui/status.html bulunamadı</h1>", status_code=500)
+    return HTMLResponse(STATUS_HTML.read_text(encoding="utf-8"))
 
 
 @app.get("/health")

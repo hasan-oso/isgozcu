@@ -30,14 +30,11 @@
   .brand .sub{color:var(--muted);font-size:13px}
   .status{display:flex;align-items:center;gap:14px;font-size:14px;color:var(--muted)}
   .status .live{display:flex;align-items:center;gap:8px;color:var(--text);font-weight:600}
-  .dot{width:11px;height:11px;border-radius:50%;background:var(--green);
-       box-shadow:0 0 0 0 rgba(63,185,80,.7);animation:pulse 1.6s infinite}
-  .dot.fallback{background:var(--amber);animation:pulseA 1.6s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,80,.6)}70%{box-shadow:0 0 0 9px rgba(63,185,80,0)}100%{box-shadow:0 0 0 0 rgba(63,185,80,0)}}
-  @keyframes pulseA{0%{box-shadow:0 0 0 0 rgba(210,153,34,.6)}70%{box-shadow:0 0 0 9px rgba(210,153,34,0)}100%{box-shadow:0 0 0 0 rgba(210,153,34,0)}}
+  .dot{width:11px;height:11px;border-radius:50%;background:var(--green)}
+  .dot.fallback{background:var(--amber)}
   #clock{font-variant-numeric:tabular-nums}
   .btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);
-       padding:7px 13px;border-radius:9px;font-size:13px;cursor:pointer;transition:all .15s}
+       padding:7px 13px;border-radius:9px;font-size:13px;cursor:pointer}
   .btn:hover{background:#243049;border-color:#3d4d6b}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
   .btn.primary:hover{background:#3b8eff}
@@ -51,7 +48,7 @@
   .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
   .card .cn{color:var(--muted);font-size:13px;margin-bottom:6px}
-  .card .cv{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;transition:color .3s}
+  .card .cv{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
   .card.ok .cv{color:var(--green)}
   .card.bad .cv{color:var(--red)}
   .card.rate .cv{color:var(--accent)}
@@ -69,8 +66,7 @@
   .vflow::-webkit-scrollbar{width:8px}
   .vflow::-webkit-scrollbar-thumb{background:#30363d;border-radius:8px}
   .vcard{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--border);
-         border-radius:12px;padding:11px 13px;animation:cardIn .28s ease;transition:opacity .5s,border-color .3s}
-  @keyframes cardIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+         border-radius:12px;padding:11px 13px}
   .vcard.active{border-left-color:var(--red);background:linear-gradient(90deg,rgba(248,81,73,.10),var(--panel))}
   .vcard.ended{opacity:.42;border-left-color:var(--muted)}
   .vcard .vt{font-weight:700;font-size:15px}
@@ -84,6 +80,30 @@
   footer{padding:8px 22px;border-top:1px solid var(--border);background:#0b0f16;
          color:var(--muted);font-size:12.5px;text-align:center;letter-spacing:.3px}
   footer b{color:var(--green);font-weight:600}
+
+  /* ---------------------------------------------------------------------
+     Motion layer — ALL animation/transition lives here so it is fully
+     disabled for users who prefer reduced motion. transform/opacity only
+     (plus a faint box-shadow for the active-violation pulse). Subtle by
+     design: slow ~2s cycles, low opacity, no fast flashing / neon.
+     --------------------------------------------------------------------- */
+  @media (prefers-reduced-motion: no-preference){
+    .btn{transition:background .15s, border-color .15s}
+    .card .cv{transition:color .3s}
+    .dot{animation:pulse 2s ease-in-out infinite}
+    .dot.fallback{animation:pulseA 2s ease-in-out infinite}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(63,185,80,.5)}50%{box-shadow:0 0 0 7px rgba(63,185,80,0)}}
+    @keyframes pulseA{0%,100%{box-shadow:0 0 0 0 rgba(210,153,34,.5)}50%{box-shadow:0 0 0 7px rgba(210,153,34,0)}}
+
+    /* violation cards: gentle slide+fade in, smooth fade out, calm active pulse */
+    .vcard{transition:transform .3s ease-out, opacity .3s ease-out, box-shadow .4s ease, border-color .3s ease}
+    .vcard.enter{opacity:0;transform:translateY(-8px)}
+    .vcard.active{animation:pulseBorder 2.2s ease-in-out infinite}
+    @keyframes pulseBorder{
+      0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,0)}
+      50%{box-shadow:0 0 0 3px rgba(248,81,73,.16)}
+    }
+  }
 </style>
 </head>
 <body>
@@ -96,6 +116,7 @@
     <div class="status">
       <span class="live"><span class="dot" id="dot"></span> <span id="modeLabel">Canlı</span> · <span id="src">Kamera 1</span></span>
       <span id="clock">--:--:--</span>
+      <button class="btn" id="btnSound" title="İhlal sesi">Ses: Kapalı</button>
       <button class="btn" id="btnSource" title="Canlı ↔ Yedek video">Kaynak değiştir</button>
       <button class="btn primary" id="btnFull">Tam ekran</button>
     </div>
@@ -125,31 +146,89 @@
 </div>
 
 <script>
+  const $ = id => document.getElementById(id);
+  const reducedMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
   // live clock (Turkish locale)
-  const tickClock = () => { document.getElementById("clock").textContent = new Date().toLocaleTimeString("tr-TR"); };
+  const tickClock = () => { $("clock").textContent = new Date().toLocaleTimeString("tr-TR"); };
   setInterval(tickClock, 1000); tickClock();
 
   // fullscreen (true kiosk look)
-  document.getElementById("btnFull").onclick = () => {
+  $("btnFull").onclick = () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
     else document.exitFullscreen?.();
   };
 
   // manual source switch (rehearsal / emergency)
-  document.getElementById("btnSource").onclick = async () => {
-    const b = document.getElementById("btnSource");
+  $("btnSource").onclick = async () => {
+    const b = $("btnSource");
     b.disabled = true; b.textContent = "Değiştiriliyor…";
     try { await fetch("/toggle-source", { method: "POST" }); } catch (e) {}
     setTimeout(() => { b.disabled = false; b.textContent = "Kaynak değiştir"; }, 1200);
   };
 
+  /* ---- optional, muted-by-default alert tone (Web Audio, no external files) ---- */
+  let soundOn = false, audioCtx = null;
+  function ensureAudio(){
+    if (!audioCtx){ try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; } }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+  function playTone(){
+    if (!soundOn || !audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+    osc.type = "sine"; osc.frequency.value = 660;        // soft, single tone
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.06, t + 0.02); // low level, gentle attack
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15); // ~150 ms
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.16);
+  }
+  $("btnSound").onclick = () => {
+    soundOn = !soundOn;
+    if (soundOn) ensureAudio();                          // create/resume on user gesture
+    $("btnSound").textContent = "Ses: " + (soundOn ? "Açık" : "Kapalı");
+    $("btnSound").classList.toggle("primary", soundOn);
+  };
+
   // MJPEG stream auto-plays in <img>; retry on error/disconnect
-  const img = document.getElementById("stream");
+  const img = $("stream");
   img.onerror = () => setTimeout(() => { img.src = "/stream?t=" + Date.now(); }, 1500);
 
-  // remember violations so ended ones fade for a few seconds
-  const tracked = new Map();           // key -> {data, endedAt|null}
+  /* ---- smooth count-up for the 4 metric cards (presentation only) ---- */
+  const counters = {}, animTokens = {};
+  function animateCount(id, target, prefix = ""){
+    target = Math.round(target);
+    const el = $(id);
+    const from = (counters[id] === undefined) ? target : counters[id];
+    counters[id] = target;
+    if (from === target || reducedMotion){ el.textContent = prefix + target; return; }
+    const token = (animTokens[id] = (animTokens[id] || 0) + 1);
+    const dur = 400, t0 = performance.now();
+    function step(now){
+      if (animTokens[id] !== token) return;              // superseded by a newer value
+      const p = Math.min(1, (now - t0) / dur);
+      el.textContent = prefix + Math.round(from + (target - from) * p);
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  /* ---- violation flow: keyed DOM diff so entrance animates once, ended fades ---- */
+  const vflow = $("vflow");
+  const tracked = new Map();      // key -> {data, endedAt|null}
+  const cardEls = new Map();      // key -> DOM element
+  const announced = new Set();    // keys already chimed for
   const vkey = v => v.track_id + "|" + v.type_tr;
+
+  function cardHTML(v, ended){
+    const conf = Math.round((v.confidence || 0) * 100);
+    const thumb = v.snapshot ? `<img class="thumb" src="${v.snapshot}" alt="kanıt görüntüsü" loading="lazy">` : "";
+    return `<div class="vt">${v.type_tr}${ended ? " · sona erdi" : ""}</div>
+      <div class="vmeta">İşçi #${v.track_id} · süre ${v.duration}s · güven %${conf}</div>
+      <div class="vtime">Başlangıç ${v.started}</div>
+      ${thumb}`;
+  }
 
   function renderViolations(viols){
     const now = Date.now();
@@ -159,31 +238,45 @@
       if (!activeKeys.has(k) && e.endedAt === null) e.endedAt = now;
       if (e.endedAt !== null && now - e.endedAt > 5000) tracked.delete(k);
     }
-    const items = [...tracked.values()].sort((a, b) => (a.endedAt ? 1 : 0) - (b.endedAt ? 1 : 0));
-    const box = document.getElementById("vflow");
-    if (!items.length){ box.innerHTML = '<div class="empty">Aktif ihlal yok</div>'; return; }
-    box.innerHTML = items.map(e => {
-      const v = e.data, ended = e.endedAt !== null;
-      const conf = Math.round((v.confidence || 0) * 100);
-      const thumb = v.snapshot ? `<img class="thumb" src="${v.snapshot}" alt="kanıt görüntüsü" loading="lazy">` : "";
-      return `<div class="vcard ${ended ? "ended" : "active"}">
-        <div class="vt">${v.type_tr}${ended ? " · sona erdi" : ""}</div>
-        <div class="vmeta">İşçi #${v.track_id} · süre ${v.duration}s · güven %${conf}</div>
-        <div class="vtime">Başlangıç ${v.started}</div>
-        ${thumb}
-      </div>`;
-    }).join("");
+    // chime once per genuinely new active violation
+    for (const k of activeKeys){ if (!announced.has(k)){ announced.add(k); playTone(); } }
+    for (const k of [...announced]){ if (!activeKeys.has(k)) announced.delete(k); }
+
+    if (tracked.size === 0){
+      cardEls.forEach(el => el.remove()); cardEls.clear();
+      if (!vflow.querySelector(".empty")) vflow.innerHTML = '<div class="empty">Aktif ihlal yok</div>';
+      return;
+    }
+    const empty = vflow.querySelector(".empty"); if (empty) empty.remove();
+
+    for (const [k, e] of tracked){
+      const ended = e.endedAt !== null;
+      let el = cardEls.get(k);
+      if (!el){
+        el = document.createElement("div");
+        el.className = "vcard enter " + (ended ? "ended" : "active");
+        el.innerHTML = cardHTML(e.data, ended);
+        vflow.insertBefore(el, vflow.firstChild);        // newest on top
+        cardEls.set(k, el);
+        // drop .enter on the next frames so it transitions to rest (once)
+        requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove("enter")));
+      } else {
+        el.className = "vcard " + (ended ? "ended" : "active");
+        el.innerHTML = cardHTML(e.data, ended);
+      }
+    }
+    for (const [k, el] of cardEls){ if (!tracked.has(k)){ el.remove(); cardEls.delete(k); } }
   }
 
   function applyHealth(h){
     if (!h) return;
-    const dot = document.getElementById("dot");
     const fallback = h.mode === "fallback";
-    dot.classList.toggle("fallback", fallback);
-    document.getElementById("modeLabel").textContent = fallback ? "Yedek" : "Canlı";
-    if (h.source) document.getElementById("src").textContent = h.source;
+    $("dot").classList.toggle("fallback", fallback);
+    $("modeLabel").textContent = fallback ? "Yedek" : "Canlı";
+    if (h.source) $("src").textContent = h.source;
   }
 
+  // ---- data fetching from /stats + /health (UNCHANGED logic) ----
   async function poll(){
     try{
       const [sr, hr] = await Promise.all([
@@ -197,11 +290,12 @@
       const violators = new Set(viols.map(v => v.track_id));
       const uyan = Math.max(0, workers - violators.size);
       const rate = workers > 0 ? Math.round(uyan / workers * 100) : 100;
-      document.getElementById("c-workers").textContent = workers;
-      document.getElementById("c-ok").textContent = uyan;
-      document.getElementById("c-viol").textContent = s.active_violations || 0;
-      document.getElementById("c-rate").textContent = "%" + rate;
-      document.getElementById("fpsTag").textContent = "FPS " + (s.fps ?? "—");
+      // presentation layer (smooth count-up instead of abrupt textContent)
+      animateCount("c-workers", workers);
+      animateCount("c-ok", uyan);
+      animateCount("c-viol", s.active_violations || 0);
+      animateCount("c-rate", rate, "%");
+      $("fpsTag").textContent = "FPS " + (s.fps ?? "—");
       renderViolations(viols);
     }catch(e){ /* keep last values on transient error */ }
   }

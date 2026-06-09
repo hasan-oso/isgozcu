@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>İşGözcü · Sistem Durumu</title>
+<style>
+  /* Sober technical status dashboard — same dark palette as kiosk.html. */
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e; --accent:#2f81f7;
+    --green:#3fb950; --red:#f85149; --amber:#d29922; --gray:#6e7681;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);overflow:hidden;
+       font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+  .app{display:flex;flex-direction:column;height:100vh;width:100vw}
+
+  header{display:flex;align-items:center;justify-content:space-between;
+         padding:16px 28px;border-bottom:1px solid var(--border);background:#11161f}
+  .title{font-size:22px;font-weight:800;letter-spacing:.4px}
+  .title .i{color:var(--accent)}
+  header .ts{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+
+  main{flex:1;display:flex;flex-direction:column;gap:20px;padding:24px 28px;overflow:auto}
+  .section h2{font-size:12.5px;text-transform:uppercase;letter-spacing:1.6px;
+              color:var(--muted);margin-bottom:12px;font-weight:600}
+
+  /* system status row */
+  .sys{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .stat{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+        padding:16px 18px;display:flex;align-items:center;gap:13px}
+  .sdot{width:12px;height:12px;border-radius:50%;background:var(--gray);flex:0 0 auto;transition:background .25s}
+  .sdot.green{background:var(--green)} .sdot.amber{background:var(--amber)} .sdot.red{background:var(--red)}
+  .stxt .k{font-size:13px;color:var(--muted)}
+  .stxt .v{font-size:16px;font-weight:700;margin-top:2px}
+
+  /* static info cards */
+  .info{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .icard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:15px 18px}
+  .icard .k{font-size:12.5px;color:var(--muted);margin-bottom:5px}
+  .icard .v{font-size:15px;font-weight:600;line-height:1.45}
+
+  /* live metric cards */
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .mcard{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;text-align:center}
+  .mcard .mk{font-size:13px;color:var(--muted)}
+  .mcard .mv{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:6px}
+  .mcard .mu{font-size:14px;color:var(--muted);margin-left:4px;font-weight:500}
+
+  footer{padding:18px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;background:#0b0f16}
+  .go{background:var(--accent);color:#fff;border:none;border-radius:11px;padding:13px 26px;
+      font-size:15px;font-weight:700;cursor:pointer;transition:background .15s}
+  .go:hover{background:#3b8eff}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">İş<span class="i">Gözcü</span> · Sistem Durumu</div>
+    <div class="ts" id="clock">--:--:--</div>
+  </header>
+
+  <main>
+    <section class="section">
+      <h2>Sistem</h2>
+      <div class="sys">
+        <div class="stat"><span class="sdot" id="d-server"></span>
+          <div class="stxt"><div class="k">Sunucu</div><div class="v" id="v-server">Bağlantı bekleniyor</div></div></div>
+        <div class="stat"><span class="sdot" id="d-source"></span>
+          <div class="stxt"><div class="k">Kaynak</div><div class="v" id="v-source">—</div></div></div>
+        <div class="stat"><span class="sdot" id="d-model"></span>
+          <div class="stxt"><div class="k">Model</div><div class="v" id="v-model">—</div></div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Model bilgisi</h2>
+      <div class="info">
+        <div class="icard"><div class="k">Mimari</div><div class="v">RT-DETR (v3)</div></div>
+        <div class="icard"><div class="k">İzlenen sınıflar</div><div class="v">3 · İşçi · Baret · Güvenlik yeleği</div></div>
+        <div class="icard"><div class="k">Doğrulama</div><div class="v">3 katmanlı filtre — eşik + zamansal yumuşatma + 8s debounce</div></div>
+        <div class="icard"><div class="k">KVKK</div><div class="v">Anonim takip · Yüz tanıma yok</div></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Canlı ölçümler</h2>
+      <div class="metrics">
+        <div class="mcard"><div class="mk">FPS</div><div class="mv" id="m-fps">—</div></div>
+        <div class="mcard" id="card-inf"><div class="mk">Çıkarım süresi</div>
+          <div class="mv"><span id="m-inf">—</span><span class="mu">ms</span></div></div>
+        <div class="mcard"><div class="mk">Aktif işçi</div><div class="mv" id="m-workers">—</div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <button class="go" id="goLive">Canlı izlemeye geç →</button>
+  </footer>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  const clk = () => { $("clock").textContent = new Date().toLocaleTimeString("tr-TR"); };
+  setInterval(clk, 1000); clk();
+
+  $("goLive").onclick = () => { window.location.href = "/"; };  // go to the live kiosk
+
+  const setDot = (id, cls) => { $(id).className = "sdot" + (cls ? " " + cls : ""); };
+
+  function waiting(){
+    setDot("d-server", ""); setDot("d-source", ""); setDot("d-model", "");
+    $("v-server").textContent = "Bağlantı bekleniyor";
+    $("v-source").textContent = "—"; $("v-model").textContent = "—";
+    $("m-fps").textContent = "—"; $("m-inf").textContent = "—"; $("m-workers").textContent = "—";
+  }
+
+  function applyHealth(h){
+    setDot("d-server", h.ok ? "green" : "");
+    $("v-server").textContent = h.ok ? "Çalışıyor" : "Bağlantı bekleniyor";
+    setDot("d-source", h.ok && h.source ? "green" : "");
+    $("v-source").textContent = h.source ? ("Bağlı · " + h.source) : "—";
+    setDot("d-model", h.streaming ? "green" : (h.ok ? "amber" : ""));
+    $("v-model").textContent = h.streaming ? "Yüklendi" : (h.ok ? "Yükleniyor" : "—");
+  }
+
+  function applyStats(s){
+    $("m-fps").textContent = Math.round(s.fps ?? 0);
+    $("m-workers").textContent = Math.round(s.workers ?? 0);
+    if (s.inference_ms === undefined || s.inference_ms === null){
+      $("card-inf").style.display = "none";          // field absent -> drop the card
+    } else {
+      $("card-inf").style.display = "";
+      $("m-inf").textContent = Math.round(s.inference_ms);
+    }
+  }
+
+  async function fetchJson(p){
+    const r = await fetch(p, {cache:"no-store"});
+    if (!r.ok) throw new Error(p);
+    return r.json();
+  }
+
+  async function tick(){
+    let delay = 1000;
+    try{
+      const [h, s] = await Promise.all([fetchJson("/health"), fetchJson("/stats")]);
+      applyHealth(h); applyStats(s);
+    }catch(e){
+      waiting(); delay = 3000;            // server down -> auto-retry every 3s
+    }
+    setTimeout(tick, delay);
+  }
+  tick();
+</script>
+</body>
+</html>
