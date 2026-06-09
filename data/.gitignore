@@ -1,0 +1,23 @@
+# data/ : keep folder structure, exclude heavy image + model binaries.
+# Datasets live on disk and in the external backup; they are not committed to Git.
+
+# Image content
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.tif
+*.tiff
+*.webp
+
+# Model weights / archives
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.bin
+*.zip
+
+# Always keep structure / this file
+!.gitignore
+!.gitkeep

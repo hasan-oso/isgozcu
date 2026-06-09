@@ -1,0 +1,9 @@
+# Model weight binaries are large (v3 model.safetensors ~163 MB, exceeds GitHub's
+# 100 MB hard limit). They are preserved on disk, in the external backup
+# (isgozcu_BACKUP_2026-06-09), and protected by the git bundle — NOT committed here.
+# Small descriptor files (config.json, preprocessor_config.json, training_args.bin)
+# remain tracked so the model architecture + class map stay versioned.
+*.safetensors
+*.pt
+*.pth
+*.onnx
