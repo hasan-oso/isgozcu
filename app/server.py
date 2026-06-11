@@ -41,7 +41,8 @@ from core.violations import IoUMatcher, ViolationDetector
 UI_HTML = PROJECT_ROOT / "ui" / "kiosk.html"
 STATUS_HTML = PROJECT_ROOT / "ui" / "status.html"
 SNAP_DIR = PROJECT_ROOT / "app" / "snapshots"
-JPEG_QUALITY = 80
+JPEG_QUALITY = 70        # default MJPEG encode quality (override via --jpeg-quality)
+STREAM_FPS_CAP = 20.0    # cap browser stream encode rate; detection runs every frame
 FAIL_LIMIT = 30  # consecutive failed live-camera reads -> auto-switch to fallback
 
 GREEN = (60, 200, 60)
@@ -99,13 +100,17 @@ WORKER = None
 
 # ---------------------------------------------------------------- worker thread
 class ProcessingWorker(threading.Thread):
-    def __init__(self, source, index, fallback, detect_every_n, conf) -> None:
+    def __init__(self, source, index, fallback, detect_every_n, conf,
+                 jpeg_quality=JPEG_QUALITY, infer_size=512, stream_fps_cap=STREAM_FPS_CAP) -> None:
         super().__init__(daemon=True, name="isg-worker")
         self.source = source          # live video path (testing) or None -> camera
         self.index = index            # live camera index
         self.fallback = fallback      # golden fallback video path or None
         self.detect_every_n = detect_every_n
         self.conf = conf
+        self.jpeg_quality = int(jpeg_quality)
+        self.infer_size = int(infer_size)
+        self.stream_fps_cap = float(stream_fps_cap)
         self.mode = "live"            # "live" | "fallback"
         self.current_label = source if source else f"Kamera {index}"
         self.auto_switched = False
@@ -155,7 +160,7 @@ class ProcessingWorker(threading.Thread):
             d = SNAP_DIR / day
             d.mkdir(parents=True, exist_ok=True)
             fname = f"W{ev.worker_id:03d}_{ev.violation_type}_{datetime.now():%H%M%S}.jpg"
-            cv2.imwrite(str(d / fname), frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
+            cv2.imwrite(str(d / fname), frame, [int(cv2.IMWRITE_JPEG_QUALITY), self.jpeg_quality])
             return f"/snapshots/{day}/{fname}"
         except Exception:
             return None
@@ -163,7 +168,8 @@ class ProcessingWorker(threading.Thread):
     # ---- main loop ----
     def run(self) -> None:
         try:
-            detector = DetectorAdapter(conf_threshold=self.conf, detect_every_n=self.detect_every_n)
+            detector = DetectorAdapter(conf_threshold=self.conf, detect_every_n=self.detect_every_n,
+                                       inference_max_size=self.infer_size)
         except Exception as e:
             self.error = f"model yüklenemedi: {e}"
             return
@@ -180,6 +186,7 @@ class ProcessingWorker(threading.Thread):
         vd = ViolationDetector(fps=src_fps)
         fps_ema = 0.0
         last_t = time.time()
+        last_emit = 0.0
         frame_no = 0
         consecutive_fail = 0
 
@@ -250,9 +257,15 @@ class ProcessingWorker(threading.Thread):
                     if url:
                         self.snapshots[ev.event_id] = url
 
-                okj, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
-                if okj:
-                    FRAME_BUFFER.update(buf.tobytes())
+                # Stream-rate cap: encode for the browser at most stream_fps_cap/s.
+                # Detection + violations above run EVERY frame; this only throttles
+                # the JPEG encode + buffer churn that competes with inference.
+                now_emit = time.time()
+                if (now_emit - last_emit) >= (1.0 / self.stream_fps_cap):
+                    okj, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), self.jpeg_quality])
+                    if okj:
+                        FRAME_BUFFER.update(buf.tobytes())
+                        last_emit = now_emit
 
                 now = datetime.now()
                 vlist = [{
@@ -302,9 +315,11 @@ class ProcessingWorker(threading.Thread):
                     (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, WHITE, 2, cv2.LINE_AA)
 
 
-def start_processing(source=None, index=1, fallback=None, detect_every_n=3, conf=0.5) -> ProcessingWorker:
+def start_processing(source=None, index=1, fallback=None, detect_every_n=3, conf=0.5,
+                     jpeg_quality=JPEG_QUALITY, infer_size=512, stream_fps_cap=STREAM_FPS_CAP) -> ProcessingWorker:
     global WORKER
-    WORKER = ProcessingWorker(source, index, fallback, detect_every_n, conf)
+    WORKER = ProcessingWorker(source, index, fallback, detect_every_n, conf,
+                              jpeg_quality=jpeg_quality, infer_size=infer_size, stream_fps_cap=stream_fps_cap)
     WORKER.start()
     return WORKER
 
@@ -395,12 +410,19 @@ def main() -> int:
                     help="Fallback 'golden' video used on demand / on live failure.")
     ap.add_argument("--detect-every-n", type=int, default=int(os.environ.get("ISG_EVERY_N", "3")))
     ap.add_argument("--conf", type=float, default=float(os.environ.get("ISG_CONF", "0.5")))
+    ap.add_argument("--jpeg-quality", type=int, default=int(os.environ.get("ISG_JPEG_Q", "70")),
+                    help="MJPEG encode quality 1-100 (default 70; lower = lighter stream).")
+    ap.add_argument("--infer-size", type=int, default=int(os.environ.get("ISG_INFER_SIZE", "512")),
+                    help="Model inference square size (default 512; smaller = faster inference).")
+    ap.add_argument("--stream-fps", type=float, default=float(os.environ.get("ISG_STREAM_FPS", "20")),
+                    help="Max browser stream encode rate (default 20; detection runs every frame).")
     ap.add_argument("--port", type=int, default=int(os.environ.get("ISG_PORT", "8000")))
     args = ap.parse_args()
 
     SNAP_DIR.mkdir(parents=True, exist_ok=True)
     start_processing(source=args.source, index=args.index, fallback=args.fallback,
-                     detect_every_n=args.detect_every_n, conf=args.conf)
+                     detect_every_n=args.detect_every_n, conf=args.conf,
+                     jpeg_quality=args.jpeg_quality, infer_size=args.infer_size, stream_fps_cap=args.stream_fps)
     import uvicorn
     live = args.source or f"kamera {args.index}"
     print(f"[isgozcu] canli={live}  yedek={args.fallback or 'yok'}  port={args.port}")

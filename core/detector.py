@@ -46,16 +46,33 @@ class DetectorAdapter:
         device: Optional[str] = None,
         use_fp16: bool = True,
         lost_track_buffer: int = 300,
+        inference_max_size: int = 512,
     ) -> None:
         self.model_dir = Path(model_dir)
         if not self.model_dir.exists():
             raise FileNotFoundError(f"v3 model not found: {self.model_dir}")
         self.conf_threshold = float(conf_threshold)
         self.detect_every_n = max(1, int(detect_every_n))
+        self.inference_max_size = int(inference_max_size)
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.use_fp16 = bool(use_fp16) and self.device == "cuda"
 
         self.processor = AutoImageProcessor.from_pretrained(str(self.model_dir))
+        # Perf lever: run the model at a smaller SQUARE resolution than v3's
+        # default 640x640. RT-DETR resizes inputs to processor.size, so this cuts
+        # inference compute by ~(S/640)^2. Boxes remain correct because _infer
+        # post-processes with target_sizes=(orig_h, orig_w): the model emits
+        # normalised box coords that map back to full-frame pixels regardless of
+        # the resize. The v3 processor uses square resize (do_pad=false), so a
+        # smaller square keeps the SAME preprocessing the model was trained on --
+        # no aspect-ratio or box drift, just lower resolution. Drawing later
+        # happens on the ORIGINAL full-res frame (the detector only resizes its
+        # own model input, never the returned boxes or the caller's frame).
+        try:
+            s = self.inference_max_size
+            self.processor.size = {"height": s, "width": s}
+        except Exception:
+            pass
         self.model = (
             AutoModelForObjectDetection.from_pretrained(str(self.model_dir))
             .to(self.device)
