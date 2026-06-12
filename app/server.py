@@ -400,6 +400,95 @@ def stream():
     return StreamingResponse(gen(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 
+def run_benchmark(index: int, seconds: float = 15.0, conf: float = 0.4) -> int:
+    """One-off perf sweep over (infer-size x detect_every_n) on the live camera.
+
+    Reports HONEST true throughput (frames / elapsed, with CAP_PROP_BUFFERSIZE=1 so
+    the loop tracks the real camera rate) -- NOT the inflated live fps_ema. A preview
+    banner shows the current combo so the user stays in frame. Loads the model for
+    inference only; writes nothing.
+    """
+    import gc
+    import torch
+
+    combos = [("A", 512, 3), ("B", 416, 3), ("C", 512, 2), ("D", 416, 2)]
+    win = "isgozcu benchmark"
+    cv2.namedWindow(win, cv2.WINDOW_NORMAL)
+    rows = []
+    for name, isz, n in combos:
+        cap = cv2.VideoCapture(int(index), cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            cap.release()
+            cap = cv2.VideoCapture(int(index))
+        if not cap.isOpened():
+            print(f"[{name}] kamera acilamadi", flush=True)
+            continue
+        try:
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        except Exception:
+            pass
+        det = DetectorAdapter(conf_threshold=conf, detect_every_n=n, inference_max_size=isz)
+        matcher = IoUMatcher()
+        vd = ViolationDetector(fps=30.0)
+        ok, f = cap.read()
+        if ok and f is not None:
+            det.detect_and_track(f)  # cold warmup, excluded from timing
+        c0, t0sum = det._infer_count, det._infer_time_sum
+        frames = kept_sum = conf_n = 0
+        conf_sum = 0.0
+        fno = 0
+        start = time.time()
+        while time.time() - start < seconds:
+            ok, frame = cap.read()
+            if not ok or frame is None:
+                if (cv2.waitKey(1) & 0xFF) in (ord("q"), 27):
+                    break
+                continue
+            h, w = frame.shape[:2]
+            dets = det.detect_and_track(frame)
+            cleaned = postprocess.process(dets, w, h)
+            persons = [d for d in cleaned if d["class_name"] == "Person"]
+            hh = [d for d in cleaned if d["class_name"] == "Hardhat"]
+            vv = [d for d in cleaned if d["class_name"] == "Safety Vest"]
+            ts = fno / 30.0
+            vd.process_matches(matcher.match_frame(persons, hh, vv, fno, ts), fno, ts)
+            kept_sum += len(dets)
+            for d in dets:
+                conf_sum += d["confidence"]
+                conf_n += 1
+            frames += 1
+            fno += 1
+            disp = frame.copy()
+            for d in cleaned:
+                b = d["bbox"]
+                cv2.rectangle(disp, (b[0], b[1]), (b[2], b[3]), (60, 200, 60), 2)
+            cv2.rectangle(disp, (0, 0), (disp.shape[1], 60), (0, 0, 0), -1)
+            cv2.putText(disp, f"{name}: infer={isz} n={n}  ({seconds - (time.time() - start):.0f}s)",
+                        (15, 42), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 200, 255), 2, cv2.LINE_AA)
+            cv2.imshow(win, disp)
+            if (cv2.waitKey(1) & 0xFF) in (ord("q"), 27):
+                break
+        el = max(1e-6, time.time() - start)
+        fps = frames / el
+        gpu_ms = (det._infer_time_sum - t0sum) / max(1, det._infer_count - c0) * 1000.0
+        rows.append((name, isz, n, fps, gpu_ms, kept_sum / max(1, frames), conf_sum / max(1, conf_n), frames))
+        print(f"[{name}] infer={isz} n={n} -> fps={fps:.1f} gpu_infer={gpu_ms:.0f}ms "
+              f"dets/frame={kept_sum / max(1, frames):.2f} avg_conf={conf_sum / max(1, conf_n):.2f} "
+              f"(frames={frames})", flush=True)
+        cap.release()
+        del det
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        time.sleep(0.5)
+    cv2.destroyAllWindows()
+    print("\n==== BENCHMARK (gercek throughput) ====", flush=True)
+    print(f"{'combo':<6}{'infer':>6}{'n':>4}{'FPS':>8}{'GPUinfer_ms':>13}{'dets/frame':>12}{'avg_conf':>10}", flush=True)
+    for (nm, isz, n, fps, gpu, kpf, avgc, fr) in rows:
+        print(f"{nm:<6}{isz:>6}{n:>4}{fps:>8.1f}{gpu:>13.0f}{kpf:>12.2f}{avgc:>10.2f}", flush=True)
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Isgozcu local kiosk server.")
     ap.add_argument("--source", default=os.environ.get("ISG_SOURCE"),
@@ -408,7 +497,9 @@ def main() -> int:
                     help="Live camera index (phone via DroidCam ~ 1).")
     ap.add_argument("--fallback", default=os.environ.get("ISG_FALLBACK"),
                     help="Fallback 'golden' video used on demand / on live failure.")
-    ap.add_argument("--detect-every-n", type=int, default=int(os.environ.get("ISG_EVERY_N", "3")))
+    ap.add_argument("--detect-every-n", type=int, default=int(os.environ.get("ISG_EVERY_N", "2")),
+                    help="Detect every Nth frame (default 2 — benchmark winner with GPU max-perf: "
+                         "fresh boxes on motion at ~29fps, full 512 resolution).")
     ap.add_argument("--conf", type=float, default=float(os.environ.get("ISG_CONF", "0.5")))
     ap.add_argument("--jpeg-quality", type=int, default=int(os.environ.get("ISG_JPEG_Q", "70")),
                     help="MJPEG encode quality 1-100 (default 70; lower = lighter stream).")
@@ -417,7 +508,14 @@ def main() -> int:
     ap.add_argument("--stream-fps", type=float, default=float(os.environ.get("ISG_STREAM_FPS", "20")),
                     help="Max browser stream encode rate (default 20; detection runs every frame).")
     ap.add_argument("--port", type=int, default=int(os.environ.get("ISG_PORT", "8000")))
+    ap.add_argument("--benchmark", action="store_true",
+                    help="Run a one-off (infer-size x detect_every_n) perf sweep on the camera, then exit.")
+    ap.add_argument("--bench-seconds", type=float, default=15.0)
+    ap.add_argument("--bench-conf", type=float, default=0.4)
     args = ap.parse_args()
+
+    if args.benchmark:
+        return run_benchmark(args.index, args.bench_seconds, args.bench_conf)
 
     SNAP_DIR.mkdir(parents=True, exist_ok=True)
     start_processing(source=args.source, index=args.index, fallback=args.fallback,
