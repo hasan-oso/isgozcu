@@ -180,6 +180,15 @@ class WorkerStateBuffer:
         missing = sum(1 for m in recent if getattr(m, attr) is False)
         return missing / len(recent)
 
+    def present_ratio(self, wid: int, ppe: str) -> float:
+        """Fraction of recent frames where the PPE WAS associated (seen present)."""
+        recent = self._recent(wid)
+        if not recent:
+            return 0.0
+        attr = {"hardhat": "has_hardhat", "vest": "has_vest"}[ppe]
+        seen = sum(1 for m in recent if getattr(m, attr) is True)
+        return seen / len(recent)
+
     def avg_person_conf_when_missing(self, wid: int, ppe: str) -> float:
         recent = self._recent(wid)
         attr = {"hardhat": "has_hardhat", "vest": "has_vest"}[ppe]
@@ -218,6 +227,12 @@ class ViolationDetector:
         if recovery_threshold >= violation_threshold:
             recovery_threshold = max(0.05, violation_threshold * 0.5)
         self.recovery_threshold = recovery_threshold
+        # Vest flickers near the detection cut-off; if it was SEEN present in
+        # >= this fraction of the recent window, treat the vest as present and do
+        # not fire / keep a vest_missing violation on brief drop-outs. Hardhat is
+        # NOT stabilised this way (it does not flicker the same), and the 8s
+        # debounce + hysteresis are unchanged.
+        self.vest_present_stabilize = 0.40
         self.buffer = WorkerStateBuffer(window_seconds=min_violation_duration, fps=fps)
         self._active: dict[tuple[int, str], ViolationEvent] = {}
         self._completed: list[ViolationEvent] = []
@@ -237,6 +252,11 @@ class ViolationDetector:
             for ppe, vtype in PPE_TO_VIOLATION.items():
                 key = (wid, vtype)
                 ratio = self.buffer.missing_ratio(wid, ppe)
+                # Vest temporal stabilisation: a vest seen in >= 40% of the recent
+                # window counts as present -> force missing-ratio to 0 so brief
+                # flicker neither fires nor sustains a vest_missing violation.
+                if ppe == "vest" and self.buffer.present_ratio(wid, "vest") >= self.vest_present_stabilize:
+                    ratio = 0.0
                 ev = self._active.get(key)
                 if ev is not None:
                     ev.duration_seconds = (datetime.now() - ev.started_at).total_seconds()

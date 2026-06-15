@@ -49,6 +49,15 @@
   .mcard .mv{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:6px}
   .mcard .mu{font-size:14px;color:var(--muted);margin-left:4px;font-weight:500}
 
+  /* model-performance cards — static, measured on the validation set */
+  .perf{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .pcard{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:15px 16px;text-align:center}
+  .pcard.lead{background:var(--panel2);border-color:#2b3550}
+  .pcard .pk{font-size:12px;color:var(--muted);min-height:30px}
+  .pcard .pv{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:4px}
+  .pcard .ps{font-size:12px;color:var(--muted);margin-top:4px}
+  .pcap{font-size:12px;color:var(--muted);margin-top:11px}
+
   footer{padding:18px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;background:#0b0f16}
   .go{background:var(--accent);color:#fff;border:none;border-radius:11px;padding:13px 26px;
       font-size:15px;font-weight:700;cursor:pointer;transition:background .15s}
@@ -83,6 +92,23 @@
         <div class="icard"><div class="k">Doğrulama</div><div class="v">3 katmanlı filtre — eşik + zamansal yumuşatma + 8s debounce</div></div>
         <div class="icard"><div class="k">KVKK</div><div class="v">Anonim takip · Yüz tanıma yok</div></div>
       </div>
+    </section>
+
+    <section class="section">
+      <h2>Model performansı</h2>
+      <div class="info">
+        <div class="icard"><div class="k">Mimari</div><div class="v">RT-DETR (Real-Time Detection Transformer) · Lisans: Apache 2.0</div></div>
+        <div class="icard"><div class="k">İzlenen sınıflar</div><div class="v">3 — İşçi, Baret, Güvenlik yeleği</div></div>
+        <div class="icard"><div class="k">Eğitim</div><div class="v">İnşaat güvenliği veri seti + saha verisi (transfer learning)</div></div>
+        <div class="icard"><div class="k">Doğrulama</div><div class="v">3 katman — güven eşiği + zamansal yumuşatma + 8sn debounce</div></div>
+      </div>
+      <div class="perf" style="margin-top:14px">
+        <div class="pcard lead"><div class="pk">Genel doğruluk (mAP@0.5)</div><div class="pv">0.79</div></div>
+        <div class="pcard"><div class="pk">İşçi (AP)</div><div class="pv">0.86</div></div>
+        <div class="pcard"><div class="pk">Güvenlik yeleği (AP)</div><div class="pv">0.81</div><div class="ps">Precision: 0.97</div></div>
+        <div class="pcard"><div class="pk">Baret (AP)</div><div class="pv">0.69</div></div>
+      </div>
+      <div class="pcap">Ölçüm: 110 görüntülük doğrulama setinde</div>
     </section>
 
     <section class="section">

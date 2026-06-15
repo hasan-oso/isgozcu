@@ -14,12 +14,19 @@ from __future__ import annotations
 
 from typing import Iterable
 
-# Confidence floors per class. Starting values taken from
-# reference_old/post_processor.py (Person / Hardhat / Safety Vest = 0.50 each).
+# Confidence floors per class. Person / Hardhat keep 0.50 (from reference_old).
+# Safety Vest lowered 0.50 -> 0.38: the vest confidence wobbles near the cut-off
+# and its box was flickering on/off (appearing, disappearing, returning). A lower
+# floor keeps borderline vests (>=0.38) so a small confidence dip no longer drops
+# the box -- the primary fix for the visible vest-box flicker (per the reported
+# "confidence near the cut-off"). Not lowered below 0.35.
+# The sliding-window (>=40%) vest *temporal* stabilisation lives in the violation
+# layer (core/violations.py: WorkerStateBuffer.present_ratio + ViolationDetector),
+# so the violation decision is smoothed there, per-instance (no shared state).
 CONFIDENCE_FLOORS: dict[str, float] = {
     "Person": 0.50,
     "Hardhat": 0.50,
-    "Safety Vest": 0.50,
+    "Safety Vest": 0.38,
 }
 DEFAULT_FLOOR = 0.50
 
@@ -47,7 +54,7 @@ def _iou(a, b) -> float:
 
 
 def process(detections: list[dict], frame_w: int, frame_h: int) -> list[dict]:
-    """Return a cleaned copy of `detections` for a single frame."""
+    """Return a cleaned copy of `detections` for a single frame (stateless)."""
     if not detections:
         return []
     dets = _apply_floors(detections)
