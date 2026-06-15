@@ -45,7 +45,11 @@ class DetectorAdapter:
         detect_every_n: int = 3,
         device: Optional[str] = None,
         use_fp16: bool = True,
-        lost_track_buffer: int = 300,
+        lost_track_buffer: int = 600,
+        track_activation_threshold: float = 0.25,
+        minimum_matching_threshold: float = 0.85,
+        minimum_consecutive_frames: int = 2,
+        frame_rate: int = 30,
         inference_max_size: int = 512,
     ) -> None:
         self.model_dir = Path(model_dir)
@@ -53,6 +57,9 @@ class DetectorAdapter:
             raise FileNotFoundError(f"v3 model not found: {self.model_dir}")
         self.conf_threshold = float(conf_threshold)
         self.detect_every_n = max(1, int(detect_every_n))
+        self.lost_track_buffer = int(lost_track_buffer)
+        self.minimum_matching_threshold = float(minimum_matching_threshold)
+        self.frame_rate = int(frame_rate)
         self.inference_max_size = int(inference_max_size)
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.use_fp16 = bool(use_fp16) and self.device == "cuda"
@@ -82,11 +89,28 @@ class DetectorAdapter:
             self.model = self.model.half()
         self.id2label = {int(k): v for k, v in self.model.config.id2label.items()}
 
-        # ByteTrack tracks PEOPLE only (anonymous worker ids). lost_track_buffer
-        # keeps the same id across short occlusions / loop boundaries.
+        # ByteTrack tracks PEOPLE only (anonymous worker ids). Tuned for occlusion
+        # robustness (workers passing behind one another in a crowded site):
+        #  - lost_track_buffer=600: a lost track is retained for up to 600 *update*
+        #    frames (= int(frame_rate/30 * buffer)). With detect_every_n>1 the
+        #    tracker only steps on detection frames, so 600 spans ~25 s @ n=1/24fps
+        #    and longer at higher n -- the same worker id survives a long occlusion
+        #    instead of being re-numbered on re-appearance. (Measured: an id
+        #    survives an occlusion iff max_time_lost >= the gap length.)
+        #  - minimum_matching_threshold=0.85: ByteTrack matches when the fused cost
+        #    1 - IoU*score <= threshold, so a HIGHER value is MORE tolerant during
+        #    re-association (accepts a lower-overlap re-match after occlusion). Kept
+        #    a mild step above the 0.80 default; raise further only if re-acquisition
+        #    still fails, lower toward 0.80 if ids get *stolen* in dense crowds.
+        #  - minimum_consecutive_frames=2: a NEW track needs 2 detections to confirm
+        #    (suppresses spurious ids); a re-found lost track re-activates instantly.
+        #  - frame_rate only scales max_time_lost; left at 30 so buffer == frames.
         self.tracker = sv.ByteTrack(
+            track_activation_threshold=track_activation_threshold,
             lost_track_buffer=lost_track_buffer,
-            minimum_consecutive_frames=2,
+            minimum_matching_threshold=minimum_matching_threshold,
+            frame_rate=frame_rate,
+            minimum_consecutive_frames=minimum_consecutive_frames,
         )
 
         # frame-skip + measurement state
@@ -186,6 +210,8 @@ class DetectorAdapter:
             "avg_inference_ms": round(avg_ms, 2),
             "effective_fps": round(eff_fps, 2),
             "detect_every_n": self.detect_every_n,
+            "lost_track_buffer": self.lost_track_buffer,
+            "minimum_matching_threshold": self.minimum_matching_threshold,
         }
 
 
