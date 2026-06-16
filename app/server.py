@@ -101,13 +101,16 @@ WORKER = None
 # ---------------------------------------------------------------- worker thread
 class ProcessingWorker(threading.Thread):
     def __init__(self, source, index, fallback, detect_every_n, conf,
-                 jpeg_quality=JPEG_QUALITY, infer_size=512, stream_fps_cap=STREAM_FPS_CAP) -> None:
+                 jpeg_quality=JPEG_QUALITY, infer_size=512, stream_fps_cap=STREAM_FPS_CAP,
+                 tracker="bytetrack", backend="rtdetr_v3") -> None:
         super().__init__(daemon=True, name="isg-worker")
         self.source = source          # live video path (testing) or None -> camera
         self.index = index            # live camera index
         self.fallback = fallback      # golden fallback video path or None
         self.detect_every_n = detect_every_n
         self.conf = conf
+        self.tracker = tracker
+        self.backend = backend
         self.jpeg_quality = int(jpeg_quality)
         self.infer_size = int(infer_size)
         self.stream_fps_cap = float(stream_fps_cap)
@@ -169,7 +172,8 @@ class ProcessingWorker(threading.Thread):
     def run(self) -> None:
         try:
             detector = DetectorAdapter(conf_threshold=self.conf, detect_every_n=self.detect_every_n,
-                                       inference_max_size=self.infer_size)
+                                       inference_max_size=self.infer_size, tracker=self.tracker,
+                                       backend=self.backend)
         except Exception as e:
             self.error = f"model yüklenemedi: {e}"
             return
@@ -316,10 +320,12 @@ class ProcessingWorker(threading.Thread):
 
 
 def start_processing(source=None, index=1, fallback=None, detect_every_n=3, conf=0.5,
-                     jpeg_quality=JPEG_QUALITY, infer_size=512, stream_fps_cap=STREAM_FPS_CAP) -> ProcessingWorker:
+                     jpeg_quality=JPEG_QUALITY, infer_size=512, stream_fps_cap=STREAM_FPS_CAP,
+                     tracker="bytetrack", backend="rtdetr_v3") -> ProcessingWorker:
     global WORKER
     WORKER = ProcessingWorker(source, index, fallback, detect_every_n, conf,
-                              jpeg_quality=jpeg_quality, infer_size=infer_size, stream_fps_cap=stream_fps_cap)
+                              jpeg_quality=jpeg_quality, infer_size=infer_size, stream_fps_cap=stream_fps_cap,
+                              tracker=tracker, backend=backend)
     WORKER.start()
     return WORKER
 
@@ -507,6 +513,12 @@ def main() -> int:
                     help="Model inference square size (default 512; smaller = faster inference).")
     ap.add_argument("--stream-fps", type=float, default=float(os.environ.get("ISG_STREAM_FPS", "20")),
                     help="Max browser stream encode rate (default 20; detection runs every frame).")
+    ap.add_argument("--tracker", default=os.environ.get("ISG_TRACKER", "bytetrack"),
+                    choices=["bytetrack", "ocsort"],
+                    help="Person tracker (default bytetrack; ocsort = appearance-free, for crowded same-uniform scenes).")
+    ap.add_argument("--backend", default=os.environ.get("ISG_BACKEND", "rtdetr_v3"),
+                    choices=["rtdetr_v3", "rfdetr"],
+                    help="Detection backend (default rtdetr_v3 = v3 via transformers; rfdetr = RF-DETR-Nano).")
     ap.add_argument("--port", type=int, default=int(os.environ.get("ISG_PORT", "8000")))
     ap.add_argument("--benchmark", action="store_true",
                     help="Run a one-off (infer-size x detect_every_n) perf sweep on the camera, then exit.")
@@ -520,10 +532,11 @@ def main() -> int:
     SNAP_DIR.mkdir(parents=True, exist_ok=True)
     start_processing(source=args.source, index=args.index, fallback=args.fallback,
                      detect_every_n=args.detect_every_n, conf=args.conf,
-                     jpeg_quality=args.jpeg_quality, infer_size=args.infer_size, stream_fps_cap=args.stream_fps)
+                     jpeg_quality=args.jpeg_quality, infer_size=args.infer_size, stream_fps_cap=args.stream_fps,
+                     tracker=args.tracker, backend=args.backend)
     import uvicorn
     live = args.source or f"kamera {args.index}"
-    print(f"[isgozcu] canli={live}  yedek={args.fallback or 'yok'}  port={args.port}")
+    print(f"[isgozcu] canli={live}  yedek={args.fallback or 'yok'}  model={args.backend}  izleyici={args.tracker}  port={args.port}")
     print(f"[isgozcu] tarayicida ac: http://localhost:{args.port}")
     uvicorn.run(app, host="0.0.0.0", port=args.port, log_level="info")
     return 0
