@@ -37,7 +37,19 @@ PERSON_MIN_ASPECT = 0.20        # h / w
 PERSON_MAX_ASPECT = 5.00        # h / w
 
 # Same-class duplicate removal (reference HARDHAT_DEDUP_IOU = 0.5).
+# Kept as-is for PPE (Hardhat / Safety Vest): the detector can place two boxes on
+# one helmet/vest, and 0.50 IoU cleans that without touching distinct gear.
 DEDUP_IOU = 0.50
+# Person is DIFFERENT. RT-DETR is a set-prediction detector (NMS-free) and does not
+# emit duplicate person boxes, so the 0.50 rule never removed a real duplicate --
+# it removed one of TWO DISTINCT overlapping people (someone passing in front of /
+# behind another). The occluded (often still) person then vanished and the tracker
+# handed it a NEW id on re-appearance -- the CONFIRMED root cause of "a still person
+# loses its number when another passes". Require NEAR-IDENTICAL overlap for persons
+# so only a genuine (rare) duplicate is dropped; two real crossing people (IoU
+# ~0.5-0.85) are always kept. Not disabled entirely, to keep a cheap guard against
+# the rare true duplicate at zero cost to the real-people case.
+DEDUP_IOU_PERSON = 0.90
 
 
 def _iou(a, b) -> float:
@@ -103,7 +115,10 @@ def _dedupe_same_class(detections: list[dict]) -> list[dict]:
                 continue
             if detections[i]["class_name"] != detections[j]["class_name"]:
                 continue
-            if _iou(detections[i]["bbox"], detections[j]["bbox"]) < DEDUP_IOU:
+            # per-class threshold: persons need near-identical overlap (0.90) so two
+            # distinct overlapping people are never merged; PPE keeps 0.50.
+            thr = DEDUP_IOU_PERSON if detections[i]["class_name"] == "Person" else DEDUP_IOU
+            if _iou(detections[i]["bbox"], detections[j]["bbox"]) < thr:
                 continue
             if detections[i]["confidence"] >= detections[j]["confidence"]:
                 keep[j] = False
@@ -114,7 +129,7 @@ def _dedupe_same_class(detections: list[dict]) -> list[dict]:
 
 
 __all__ = [
-    "process", "CONFIDENCE_FLOORS", "DEDUP_IOU",
+    "process", "CONFIDENCE_FLOORS", "DEDUP_IOU", "DEDUP_IOU_PERSON",
     "PERSON_MIN_AREA_RATIO", "PERSON_MAX_AREA_RATIO",
     "PERSON_MIN_ASPECT", "PERSON_MAX_ASPECT",
 ]

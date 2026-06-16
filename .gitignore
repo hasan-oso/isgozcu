@@ -95,3 +95,17 @@ frontend/tsconfig.tsbuildinfo
 # ============================================================================
 app/demo_output/
 app/snapshots/
+
+# ============================================================================
+# Training data & artifacts (heavy / generated — not tracked)
+# ============================================================================
+*.zip
+training/captured/
+training/labels/
+training/ft_dataset/
+training/_ft_dataset/
+training/isgozcu_dataset_coco/
+training/isgozcu_dataset_coco.zip
+training/_distance_test/
+training/_rotate_preview/
+training/ft_user_stats.json
