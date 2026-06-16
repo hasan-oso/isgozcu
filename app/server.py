@@ -40,6 +40,7 @@ from core.violations import IoUMatcher, ViolationDetector
 
 UI_HTML = PROJECT_ROOT / "ui" / "kiosk.html"
 STATUS_HTML = PROJECT_ROOT / "ui" / "status.html"
+SUNUM_HTML = PROJECT_ROOT / "ui" / "sunum.html"
 SNAP_DIR = PROJECT_ROOT / "app" / "snapshots"
 JPEG_QUALITY = 70        # default MJPEG encode quality (override via --jpeg-quality)
 STREAM_FPS_CAP = 20.0    # cap browser stream encode rate; detection runs every frame
@@ -346,6 +347,13 @@ def status_page():
     if not STATUS_HTML.exists():
         return HTMLResponse("<h1>ui/status.html bulunamadı</h1>", status_code=500)
     return HTMLResponse(STATUS_HTML.read_text(encoding="utf-8"))
+
+
+@app.get("/sunum", response_class=HTMLResponse)
+def sunum_page():
+    if not SUNUM_HTML.exists():
+        return HTMLResponse("<h1>ui/sunum.html bulunamadı</h1>", status_code=500)
+    return HTMLResponse(SUNUM_HTML.read_text(encoding="utf-8"))
 
 
 @app.get("/health")
