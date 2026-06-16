@@ -30,6 +30,13 @@
          transition:opacity .5s ease, transform .5s ease}
   .slide.active{opacity:1;transform:none;pointer-events:auto}
 
+  /* invisible navigation click zones (no visual). Left half = back, right half =
+     forward. They sit above slide text (so any click navigates) but BELOW the live
+     demo block on screen 5 (so clicking the stream/panel never flips the slide). */
+  .zone{position:absolute;top:0;bottom:0;width:50%;z-index:5;cursor:pointer;background:transparent}
+  .zone.left{left:0}
+  .zone.right{right:0}
+
   .kicker{color:var(--accent);font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase}
   h1.brand{font-size:62px;font-weight:800;letter-spacing:.5px}
   h1.brand .i{color:var(--accent)}
@@ -75,7 +82,7 @@
   .pulse .d{width:11px;height:11px;border-radius:50%;background:var(--green);
             box-shadow:0 0 0 0 rgba(63,185,80,.6);animation:pulse 1.6s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,80,.6)}70%{box-shadow:0 0 0 13px rgba(63,185,80,0)}100%{box-shadow:0 0 0 0 rgba(63,185,80,0)}}
-  .demo{display:flex;gap:18px;align-items:stretch;width:100%;max-width:1200px;min-height:0;flex:1}
+  .demo{display:flex;gap:18px;align-items:stretch;width:100%;max-width:1200px;min-height:0;flex:1;position:relative;z-index:6}
   .stream{flex:1;min-width:0;background:#000;border:1px solid var(--border);border-radius:14px;
           display:flex;align-items:center;justify-content:center;overflow:hidden}
   .stream img{width:100%;height:100%;object-fit:contain;display:block}
@@ -89,7 +96,7 @@
   .lstatic b{color:var(--text)}
 
   /* footer nav */
-  footer{display:flex;align-items:center;justify-content:space-between;
+  footer{display:flex;align-items:center;justify-content:center;
          padding:14px 32px;border-top:1px solid var(--border);background:#0b0f16;flex:0 0 auto}
   .nav{display:flex;gap:10px}
   .btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);
@@ -110,6 +117,8 @@
   </header>
 
   <div class="deck" id="deck">
+    <div class="zone left" id="zprev"></div>
+    <div class="zone right" id="znext"></div>
 
     <!-- 1) AÇILIŞ -->
     <section class="slide active">
@@ -210,12 +219,7 @@
   </div>
 
   <footer>
-    <div class="nav">
-      <button class="btn" id="prev">← Geri</button>
-      <button class="btn" id="next">İleri →</button>
-    </div>
     <div class="dots" id="dots"></div>
-    <div class="hint">← → tuşları ile gezinin</div>
   </footer>
 </div>
 
@@ -223,7 +227,7 @@
   const $ = id => document.getElementById(id);
   const slides = Array.from(document.querySelectorAll(".slide"));
   const DEMO_INDEX = slides.indexOf($("slide-demo"));
-  const dotsBox = $("dots"), counter = $("counter"), prevBtn = $("prev"), nextBtn = $("next");
+  const dotsBox = $("dots"), counter = $("counter");
   const streamImg = $("demo-stream");
   let i = 0;
 
@@ -240,12 +244,10 @@
     slides.forEach((s, k) => s.classList.toggle("active", k === i));
     dots.forEach((d, k) => d.classList.toggle("on", k === i));
     counter.textContent = (i + 1) + " / " + slides.length;
-    prevBtn.disabled = i === 0;
-    nextBtn.disabled = i === slides.length - 1;
     if (i === DEMO_INDEX) ensureStream();   // start the live stream when the demo screen opens
   }
   const next = () => go(i + 1), prev = () => go(i - 1);
-  nextBtn.onclick = next; prevBtn.onclick = prev;
+  $("znext").onclick = next; $("zprev").onclick = prev;   // invisible right/left click zones
   document.addEventListener("keydown", (e) => {
     if (e.key === "ArrowRight" || e.key === "PageDown") next();
     else if (e.key === "ArrowLeft" || e.key === "PageUp") prev();
